@@ -151,7 +151,7 @@ export function every<T>(
   iterator: EachArrayIterator<T>,
   revert?: boolean
 ): boolean
-export function every<T extends {}, TValue extends T[keyof T]>(
+export function every<T extends {}>(
   val: T,
   iterator: EachObjectIterator,
   revert?: boolean
@@ -181,7 +181,7 @@ export function some<T>(
   iterator: EachArrayIterator<T>,
   revert?: boolean
 ): boolean
-export function some<T extends {}, TValue extends T[keyof T]>(
+export function some<T extends {}>(
   val: T,
   iterator: EachObjectIterator,
   revert?: boolean
@@ -211,7 +211,7 @@ export function findIndex<T>(
   iterator: EachArrayIterator<T>,
   revert?: boolean
 ): number
-export function findIndex<T extends {}, TValue extends T[keyof T]>(
+export function findIndex<T extends {}>(
   val: T,
   iterator: EachObjectIterator,
   revert?: boolean
@@ -245,7 +245,7 @@ export function find<T>(
   iterator: EachArrayIterator<T>,
   revert?: boolean
 ): T
-export function find<T extends {}, TValue extends T[keyof T]>(
+export function find<T extends {}>(
   val: T,
   iterator: EachObjectIterator,
   revert?: boolean
@@ -277,5 +277,37 @@ export function includes<T>(
 ): boolean
 export function includes(val: any, searchElement: any, revert?: boolean) {
   if (isStr(val)) return val.includes(searchElement)
-  return some(val, item => item === searchElement, revert)
+  return some(val, (item) => item === searchElement, revert)
+}
+
+export function move<T extends any>(
+  array: T[],
+  fromIndex: number,
+  toIndex: number
+) {
+  if (fromIndex === toIndex) return array
+
+  if (
+    toIndex < 0 ||
+    fromIndex < 0 ||
+    toIndex > array.length - 1 ||
+    fromIndex > array.length - 1
+  ) {
+    return array
+  }
+
+  if (fromIndex < toIndex) {
+    const fromItem = array[fromIndex]
+    for (let index = fromIndex; index < toIndex; index++) {
+      array[index] = array[index + 1]
+    }
+    array[toIndex] = fromItem
+  } else {
+    const fromItem = array[fromIndex]
+    for (let index = fromIndex; index > toIndex; index--) {
+      array[index] = array[index - 1]
+    }
+    array[toIndex] = fromItem
+  }
+  return array
 }

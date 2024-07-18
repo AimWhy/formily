@@ -11,6 +11,7 @@
 首先，reactions 是用在具体字段属性上的响应器，它会基于函数内依赖的数据变化而重复执行，它最大的优点就是简单直接，容易理解，比如：
 
 ```tsx pure
+/* eslint-disable */
 <Field
   name="A"
   reactions={(field) => {
@@ -41,7 +42,7 @@ onFieldReact('*(A,B,C)', (field) => {
     "dependencies": ["aa"],
     "fulfill": {
       "state": {
-        "visible": "$deps[0] == '123'"
+        "visible": "{{$deps[0] == '123'}}"
       }
     }
   }
@@ -73,4 +74,4 @@ onFieldReact('*(A,B,C)', (field) => {
   - 不存在异步逻辑，优先选择结构化 reactions 定义逻辑
   - 存在异步逻辑，或者大量计算，优先选择函数态 reactions 定义逻辑
 
-对于 effects 中如何玩出花来，我们主要看[@formily/core](https://core.formilyjs.org)文档即可
+对于 effects 中如何玩出花来，我们主要看[@formily/core](https://core.formilyjs.org/zh-CN)文档即可

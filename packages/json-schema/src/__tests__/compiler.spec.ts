@@ -1,4 +1,11 @@
-import { compile, registerCompiler, shallowCompile } from '../compiler'
+import {
+  compile,
+  silent,
+  registerCompiler,
+  shallowCompile,
+  patchCompile,
+  patchSchemaCompile,
+} from '../compiler'
 import { Schema } from '../schema'
 
 test('compile', () => {
@@ -52,7 +59,7 @@ test('compile', () => {
   })
   const compiledSchema = schema.compile()
   expect(compiledSchema.toJSON()).toEqual(schema.toJSON())
-  expect(compiledSchema.properties['aa']['x-component-props']).toEqual(
+  expect(compiledSchema.properties?.['aa']['x-component-props']).toEqual(
     '{{123}}'
   )
   const toJSable = {
@@ -108,8 +115,211 @@ test('shallowCompile', () => {
   ).toEqual({
     array: ['{{123}}'],
   })
-  expect(shallowCompile(['{{123}}'])).toEqual([123])
+  expect(shallowCompile(['{{123}}'])).toEqual(['{{123}}'])
   expect(shallowCompile([{ kk: '{{123}}' }])).toEqual([{ kk: '{{123}}' }])
+})
+
+test('unsilent', () => {
+  silent(false)
+  expect(() => compile('{{ ( }}')).toThrowError()
+})
+
+test('silent', () => {
+  silent(true)
+  expect(() => compile('{{ ( }}')).not.toThrowError()
+  silent(false)
+})
+
+test('patchCompile', () => {
+  const targetState = {
+    title: '',
+    description: '',
+    dataSource: [22],
+  }
+  patchCompile(
+    targetState as any,
+    {
+      title: '132',
+      description: '{{"Hello world"}}',
+      dataSource: [1, 2, 3, '{{333}}'],
+      extend: '333',
+    },
+    {}
+  )
+  expect(targetState).toEqual({
+    title: '132',
+    description: 'Hello world',
+    dataSource: [1, 2, 3, 333],
+  })
+})
+
+test('patchSchemaCompile', () => {
+  const targetState = {
+    title: '',
+    description: '',
+    dataSource: [22],
+  }
+  patchSchemaCompile(
+    targetState as any,
+    {
+      title: '132',
+      description: '{{"Hello world"}}',
+      enum: [1, 2, 3, '{{333}}'],
+      'x-reactions': {
+        fulfill: {
+          schema: {
+            title: 'hello',
+          },
+        },
+      },
+      version: '1.2.3',
+    },
+    {}
+  )
+  expect(targetState).toEqual({
+    title: '132',
+    description: 'Hello world',
+    dataSource: [
+      { label: 1, value: 1 },
+      { label: 2, value: 2 },
+      { label: 3, value: 3 },
+      { label: 333, value: 333 },
+    ],
+  })
+})
+
+test('patchSchemaCompile demand un initialized', () => {
+  const setValidatorRule = (name: string, value: any) => {
+    targetState[name] = value
+  }
+  const targetState = {
+    title: '',
+    description: '',
+    dataSource: [22],
+    setValidatorRule,
+  }
+  patchSchemaCompile(
+    targetState as any,
+    {
+      title: '132',
+      'x-display': undefined,
+      'x-hidden': null,
+      description: '{{"Hello world"}}',
+      enum: [1, 2, 3, '{{333}}'],
+      format: 'phone',
+      'x-reactions': {
+        fulfill: {
+          schema: {
+            title: 'hello',
+          },
+        },
+      },
+      version: '1.2.3',
+    },
+    {},
+    true
+  )
+  expect(targetState).toEqual({
+    title: '132',
+    description: 'Hello world',
+    hidden: null,
+    format: 'phone',
+    setValidatorRule,
+    dataSource: [
+      { label: 1, value: 1 },
+      { label: 2, value: 2 },
+      { label: 3, value: 3 },
+      { label: 333, value: 333 },
+    ],
+  })
+})
+
+test('patchSchemaCompile demand initialized', () => {
+  const targetState = {
+    initialized: true,
+    title: '',
+    description: '',
+    dataSource: [22],
+  }
+  patchSchemaCompile(
+    targetState as any,
+    {
+      title: '132',
+      description: '{{"Hello world"}}',
+      enum: [1, 2, 3, '{{333}}'],
+      'x-reactions': {
+        fulfill: {
+          schema: {
+            title: 'hello',
+          },
+        },
+      },
+      version: '1.2.3',
+    },
+    {},
+    true
+  )
+  expect(targetState).toEqual({
+    initialized: true,
+    title: '',
+    description: '',
+    dataSource: [22],
+  })
+})
+
+test('patchSchemaCompile x-compile-omitted', () => {
+  const targetState = {
+    title: '',
+    validator: [],
+  }
+  patchSchemaCompile(
+    targetState as any,
+    {
+      title: '132',
+      'x-validator': [
+        {
+          remoteCheckUniq: '{{field.value}}',
+        },
+      ],
+      version: '1.2.3',
+    },
+    {
+      field: {
+        value: 888,
+      },
+    }
+  )
+  expect(targetState).toEqual({
+    title: '132',
+    validator: [{ remoteCheckUniq: 888 }],
+  })
+
+  const targetOmitState = {
+    title: '',
+    validator: [],
+  }
+  patchSchemaCompile(
+    targetOmitState as any,
+    {
+      title: '132',
+      'x-compile-omitted': ['x-validator'],
+      'x-validator': [
+        {
+          remoteCheckUniq: '{{field.value}}',
+        },
+      ],
+      version: '1.2.3',
+    },
+    {
+      field: {
+        value: 888,
+      },
+    }
+  )
+  expect(targetOmitState).toEqual({
+    title: '132',
+    validator: [{ remoteCheckUniq: '{{field.value}}' }],
+  })
 })
 
 test('registerCompiler', () => {

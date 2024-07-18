@@ -1,6 +1,6 @@
 name: Check PR title
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - reopened
@@ -11,11 +11,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: aslafy-z/conventional-pr-title-action@master
+      - uses: aslafy-z/conventional-pr-title-action@v2.4.0
         with:
-          success-state: Title follows the specification.
-          failure-state: Title does not follow the specification.
-          context-name: conventional-pr-title
-          preset: conventional-changelog-angular@latest
+          preset: conventional-changelog-angular@^5.0.6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

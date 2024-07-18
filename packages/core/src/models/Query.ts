@@ -1,4 +1,5 @@
 import { FormPath, isFn, each, FormPathPattern } from '@formily/shared'
+import { buildDataPath } from '../shared/internals'
 import { GeneralField, IGeneralFieldState, IQueryProps } from '../types'
 import { Form } from './Form'
 
@@ -13,6 +14,18 @@ const output = (
   return field
 }
 
+const takeMatchPattern = (form: Form, pattern: FormPath) => {
+  const identifier = pattern.toString()
+  const indexIdentifier = form.indexes[identifier]
+  const absoluteField = form.fields[identifier]
+  const indexField = form.fields[indexIdentifier]
+  if (absoluteField) {
+    return identifier
+  } else if (indexField) {
+    return indexIdentifier
+  }
+}
+
 export class Query {
   private pattern: FormPath
   private addresses: string[] = []
@@ -21,15 +34,21 @@ export class Query {
     this.pattern = FormPath.parse(props.pattern, props.base)
     this.form = props.form
     if (!this.pattern.isMatchPattern) {
-      const identifier = this.pattern.toString()
-      const index = this.form.indexes.get(identifier)
-      if (this.form.fields[identifier]) {
-        this.addresses = [identifier]
-      } else if (this.form.fields[index]) {
-        this.addresses = [index]
+      const matched = takeMatchPattern(
+        this.form,
+        this.pattern.haveRelativePattern
+          ? buildDataPath(props.form.fields, this.pattern)
+          : this.pattern
+      )
+      if (matched) {
+        this.addresses = [matched]
       }
     } else {
       each(this.form.fields, (field, address) => {
+        if (!field) {
+          delete this.form.fields[address]
+          return
+        }
         if (field.match(this.pattern)) {
           this.addresses.push(address)
         }
@@ -37,7 +56,7 @@ export class Query {
     }
   }
 
-  take(): GeneralField
+  take(): GeneralField | undefined
   take<Result>(
     getter: (field: GeneralField, address: FormPath) => Result
   ): Result
@@ -47,17 +66,19 @@ export class Query {
 
   map(): GeneralField[]
   map<Result>(
-    mapper?: (field: GeneralField, address: FormPath) => Result
+    iterator?: (field: GeneralField, address: FormPath) => Result
   ): Result[]
-  map(mapper?: any): any {
+  map(iterator?: any): any {
     return this.addresses.map((address) =>
-      output(this.form.fields[address], mapper)
+      output(this.form.fields[address], iterator)
     )
   }
 
-  forEach<Result>(eacher: (field: GeneralField, address: FormPath) => Result) {
+  forEach<Result>(
+    iterator: (field: GeneralField, address: FormPath) => Result
+  ) {
     return this.addresses.forEach((address) =>
-      output(this.form.fields[address], eacher)
+      output(this.form.fields[address], iterator)
     )
   }
 
@@ -86,10 +107,10 @@ export class Query {
   }
 
   value() {
-    return this.form.getValuesIn(this.pattern)
+    return this.get('value')
   }
 
   initialValue() {
-    return this.form.getInitialValuesIn(this.pattern)
+    return this.get('initialValue')
   }
 }

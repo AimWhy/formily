@@ -49,7 +49,14 @@ const send = ({
       source: '@formily-devtools-inject-script',
       type,
       id,
-      graph: form && JSON.stringify(graph),
+      graph:
+        form &&
+        JSON.stringify(graph, (key, value) => {
+          if (typeof value === 'symbol') {
+            return value.toString()
+          }
+          return value
+        }),
     },
     '*'
   )
@@ -73,6 +80,13 @@ const HOOK = {
   },
   closeDevtools() {
     this.hasOpenDevtools = false
+  },
+  setVm(fieldId: string, formId: string) {
+    if (fieldId) {
+      globalThis.$vm = this.store[formId].fields[fieldId]
+    } else {
+      globalThis.$vm = this.store[formId]
+    }
   },
   inject(id: number, form: any) {
     this.hasFormilyInstance = true

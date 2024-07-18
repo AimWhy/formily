@@ -1,20 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { unstable_useCompatFactory } from '@formily/reactive-react'
+import { Form } from '@formily/core'
 import { uid } from '@formily/shared'
 import { useForm } from './useForm'
 
-export const useFormEffects = (
-  effects?: (form: Formily.Core.Models.Form) => void
-) => {
-  const ref = useRef(null)
+export const useFormEffects = (effects?: (form: Form) => void) => {
   const form = useForm()
-  ref.current = useMemo(() => {
+  unstable_useCompatFactory(() => {
     const id = uid()
     form.addEffects(id, effects)
-    return id
-  }, [])
-  useEffect(() => {
-    return () => {
-      form.removeEffects(ref.current)
+    return {
+      dispose() {
+        form.removeEffects(id)
+      },
     }
-  }, [])
+  })
 }

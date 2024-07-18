@@ -5,22 +5,13 @@
  * 4. 吸底布局
  */
 import React, { useRef, useLayoutEffect, useState } from 'react'
-import StickyBox, { StickyBoxMode } from 'react-sticky-box'
+import StickyBox from 'react-sticky-box'
+import { ReactFC } from '@formily/react'
 import { Space, ISpaceProps } from '../space'
 import { BaseItem, IFormItemProps } from '../form-item'
 import { usePrefixCls } from '../__builtins__'
 import cls from 'classnames'
-interface IStickyProps {
-  offsetTop?: number
-  offsetBottom?: number
-  bottom?: boolean
-  onChangeMode?: (
-    oldMode: StickyBoxMode | undefined,
-    newMode: StickyBoxMode
-  ) => any
-  style?: React.CSSProperties
-  className?: string
-  padding?: number
+interface IStickyProps extends React.ComponentProps<typeof StickyBox> {
   align?: React.CSSProperties['textAlign']
 }
 
@@ -29,9 +20,9 @@ type IFormButtonGroupProps = Omit<ISpaceProps, 'align' | 'size'> & {
   gutter?: number
 }
 
-type ComposedButtonGroup = React.FC<IFormButtonGroupProps> & {
-  Sticky: React.FC<IStickyProps>
-  FormItem: React.FC<
+type ComposedButtonGroup = ReactFC<IFormButtonGroupProps> & {
+  Sticky: ReactFC<IStickyProps>
+  FormItem: ReactFC<
     IFormItemProps & {
       gutter?: number
     }
@@ -40,10 +31,10 @@ type ComposedButtonGroup = React.FC<IFormButtonGroupProps> & {
 
 function getInheritedBackgroundColor(el: HTMLElement) {
   // get default style for current browser
-  var defaultStyle = getDefaultBackground() // typically "rgba(0, 0, 0, 0)"
+  let defaultStyle = getDefaultBackground() // typically "rgba(0, 0, 0, 0)"
 
   // get computed color for el
-  var backgroundColor = window.getComputedStyle(el).backgroundColor
+  let backgroundColor = window.getComputedStyle(el).backgroundColor
 
   // if we got a real value, return it
   if (backgroundColor != defaultStyle) return backgroundColor
@@ -57,9 +48,9 @@ function getInheritedBackgroundColor(el: HTMLElement) {
 
 function getDefaultBackground() {
   // have to add to the document in order to use getComputedStyle
-  var div = document.createElement('div')
+  let div = document.createElement('div')
   document.head.appendChild(div)
-  var bg = window.getComputedStyle(div).backgroundColor
+  let bg = window.getComputedStyle(div).backgroundColor
   document.head.removeChild(div)
   return bg
 }

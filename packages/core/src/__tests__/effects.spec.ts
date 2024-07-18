@@ -36,7 +36,7 @@ import {
   onFormValuesChange,
   isVoidField,
 } from '../'
-import { runEffects } from '../shared'
+import { runEffects } from '../shared/effective'
 import { attach, sleep } from './shared'
 
 test('onFormInit/onFormMount/onFormUnmount', () => {
@@ -132,6 +132,17 @@ test('onFormReact', () => {
   form.setValues({ aa: 123 })
   expect(react).toBeCalled()
   form.onUnmount()
+
+  // will not throw error
+  const form2 = attach(
+    createForm({
+      effects() {
+        onFormReact()
+      },
+    })
+  )
+
+  form2.onUnmount()
 })
 
 test('onFormReset', async () => {
@@ -422,13 +433,17 @@ test('onFieldValidate', async () => {
       required: true,
     })
   )
-  await field.validate()
+  try {
+    await field.validate()
+  } catch {}
   expect(validateStart).toBeCalled()
   expect(validateFailed).toBeCalled()
   expect(validateSuccess).not.toBeCalled()
   expect(validateEnd).toBeCalled()
   field.setValue('123')
-  await field.validate()
+  try {
+    await field.validate()
+  } catch {}
   expect(validateStart).toBeCalledTimes(2)
   expect(validateFailed).toBeCalledTimes(1)
   expect(validateSuccess).toBeCalledTimes(1)
@@ -447,7 +462,7 @@ test('async use will throw error', async () => {
           } catch (e) {
             error = e
           }
-        })
+        }, 0)
       },
     })
   )
@@ -479,7 +494,7 @@ test('effect context', async () => {
       } catch (e) {
         error2 = e
       }
-    })
+    }, 0)
   }
   attach(
     createForm({
@@ -493,7 +508,7 @@ test('effect context', async () => {
           } catch (e) {
             error = e
           }
-        })
+        }, 0)
         consumer2()
       },
     })

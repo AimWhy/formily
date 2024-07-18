@@ -6,11 +6,11 @@ Formily1.x 中实现联动逻辑只有一种模式，也就是主动模式，必
 
 主动联动核心是基于
 
-- [FormEffectHooks](https://core.formilyjs.org/api/entry/form-effect-hooks)
-- [FieldEffectHooks](https://core.formilyjs.org/api/entry/field-effect-hooks)
-- [setFormState](https://core.formilyjs.org/api/models/form#setformstate)
-- [setFieldState](https://core.formilyjs.org/api/models/form#setfieldstate)
-- [SchemaReactions](https://react.formilyjs.org/api/shared/schema#schemareactions)
+- [FormEffectHooks](https://core.formilyjs.org/zh-CN/api/entry/form-effect-hooks)
+- [FieldEffectHooks](https://core.formilyjs.org/zh-CN/api/entry/field-effect-hooks)
+- [setFormState](https://core.formilyjs.org/zh-CN/api/models/form#setformstate)
+- [setFieldState](https://core.formilyjs.org/zh-CN/api/models/form#setfieldstate)
+- [SchemaReactions](https://react.formilyjs.org/zh-CN/api/shared/schema#schemareactions)
 
 实现主动联动，优点是实现一对多联动时非常方便
 
@@ -931,11 +931,11 @@ const SchemaField = createSchemaField({
     Select,
   },
   scope: {
-    asyncVisible(field) {
+    asyncVisible(field, target) {
       field.loading = true
       setTimeout(() => {
         field.loading = false
-        form.setFieldState('input', (state) => {
+        form.setFieldState(target, (state) => {
           //对于初始联动，如果字段找不到，setFieldState会将更新推入更新队列，直到字段出现再执行操作
           state.display = field.value
         })
@@ -960,7 +960,7 @@ export default () => (
         x-decorator="FormItem"
         x-reactions={{
           target: 'input',
-          effects: ['onFieldValueChange'],
+          effects: ['onFieldInit', 'onFieldValueChange'],
           fulfill: {
             run: 'asyncVisible($self,$target)',
           },
@@ -989,9 +989,9 @@ export default () => (
 
 被动模式的核心是基于
 
-- [onFieldReact](https://core.formilyjs.org/api/entry/field-effect-hooks#onfieldreact)实现全局响应式逻辑
-- [FieldReaction](https://core.formilyjs.org/api/models/field#fieldreaction)实现局部响应式逻辑
-- [SchemaReactions](https://react.formilyjs.org/api/shared/schema#schemareactions)实现 Schema 协议中的结构化逻辑描述(内部是基于 FieldReaction 来实现的)
+- [onFieldReact](https://core.formilyjs.org/zh-CN/api/entry/field-effect-hooks#onfieldreact)实现全局响应式逻辑
+- [FieldReaction](https://core.formilyjs.org/zh-CN/api/models/field#fieldreaction)实现局部响应式逻辑
+- [SchemaReactions](https://react.formilyjs.org/zh-CN/api/shared/schema#schemareactions)实现 Schema 协议中的结构化逻辑描述(内部是基于 FieldReaction 来实现的)
 
 ### 一对一联动
 
@@ -1524,9 +1524,154 @@ export default () => (
 
 ### 循环联动
 
-被动模式实现循环联动会有问题，因为被动模式感知到的数据变化会引发链式联动
+#### Effects 用例
 
-链式联动就会出现无法打破循环的互斥联动，所以推荐用主动模式实现循环联动
+```tsx
+import React from 'react'
+import { createForm, onFieldReact } from '@formily/core'
+import { createSchemaField, FormConsumer } from '@formily/react'
+import { Form, FormItem, NumberPicker } from '@formily/antd'
+
+const form = createForm({
+  effects() {
+    onFieldReact('total', (field) => {
+      const count = field.query('count').value()
+      const price = field.query('price').value()
+      if (count !== undefined && price !== undefined) {
+        field.value = count * price
+      }
+    })
+    onFieldReact('price', (field) => {
+      const total = field.query('total').value()
+      const count = field.query('count').value()
+      if (total !== undefined && count > 0) {
+        field.value = total / count
+      }
+    })
+    onFieldReact('count', (field) => {
+      const total = field.query('total').value()
+      const price = field.query('price').value()
+      if (total !== undefined && price > 0) {
+        field.value = total / price
+      }
+    })
+  },
+})
+
+const SchemaField = createSchemaField({
+  components: {
+    FormItem,
+    NumberPicker,
+  },
+})
+
+export default () => (
+  <Form form={form}>
+    <SchemaField>
+      <SchemaField.Number
+        name="total"
+        title="总价"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+      />
+      <SchemaField.Number
+        name="count"
+        title="数量"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+      />
+      <SchemaField.Number
+        name="price"
+        title="单价"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+      />
+    </SchemaField>
+    <FormConsumer>
+      {() => (
+        <code>
+          <pre>{JSON.stringify(form.values, null, 2)}</pre>
+        </code>
+      )}
+    </FormConsumer>
+  </Form>
+)
+```
+
+#### SchemaReactions 用例
+
+```tsx
+import React from 'react'
+import { createForm } from '@formily/core'
+import { createSchemaField, FormConsumer } from '@formily/react'
+import { Form, FormItem, NumberPicker } from '@formily/antd'
+
+const form = createForm()
+
+const SchemaField = createSchemaField({
+  components: {
+    FormItem,
+    NumberPicker,
+  },
+})
+
+export default () => (
+  <Form form={form}>
+    <SchemaField>
+      <SchemaField.Number
+        name="total"
+        title="总价"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+        x-reactions={{
+          dependencies: ['.count', '.price'],
+          fulfill: {
+            state: {
+              value:
+                '{{$deps[0] !== undefined && $deps[1] !== undefined ? $deps[0] * $deps[1] : $self.value}}',
+            },
+          },
+        }}
+      />
+      <SchemaField.Number
+        name="count"
+        title="数量"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+        x-reactions={{
+          dependencies: ['.total', '.price'],
+          fulfill: {
+            state: {
+              value: '{{ $deps[1] > 0 ? $deps[0] / $deps[1] : $self.value}}',
+            },
+          },
+        }}
+      />
+      <SchemaField.Number
+        name="price"
+        title="单价"
+        x-component="NumberPicker"
+        x-decorator="FormItem"
+        x-reactions={{
+          dependencies: ['.total', '.count'],
+          fulfill: {
+            state: {
+              value: '{{ $deps[1] > 0 ? $deps[0] / $deps[1] : $self.value}}',
+            },
+          },
+        }}
+      />
+    </SchemaField>
+    <FormConsumer>
+      {() => (
+        <code>
+          <pre>{JSON.stringify(form.values, null, 2)}</pre>
+        </code>
+      )}
+    </FormConsumer>
+  </Form>
+)
+```
 
 ### 自身联动
 
@@ -1719,7 +1864,7 @@ const SchemaField = createSchemaField({
   scope: {
     asyncVisible(field) {
       const select = field.query('select').take()
-      if(!select) return
+      if (!select) return
       const selectValue = select.value
       select.loading = true
       if (selectValue) {

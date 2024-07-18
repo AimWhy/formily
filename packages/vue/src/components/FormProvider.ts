@@ -1,27 +1,33 @@
-import { provide, defineComponent, toRaw, DefineComponent } from 'vue-demi'
-import { FormSymbol } from '../shared/context'
-import { IProviderProps } from '../types'
+import { provide, defineComponent, toRef } from 'vue-demi'
+import {
+  FormSymbol,
+  FieldSymbol,
+  SchemaMarkupSymbol,
+  SchemaSymbol,
+  SchemaExpressionScopeSymbol,
+  SchemaOptionsSymbol,
+} from '../shared/context'
+import { IProviderProps, DefineComponent } from '../types'
 import { useAttach } from '../hooks/useAttach'
+import { useInjectionCleaner } from '../hooks/useInjectionCleaner'
 import h from '../shared/h'
 import { Fragment } from '../shared/fragment'
 
-export default defineComponent<IProviderProps>({
+export default defineComponent({
   name: 'FormProvider',
   inheritAttrs: false,
-  props: {
-    form: {
-      type: Object,
-      required: true
-    }
-  },
-  setup(props: IProviderProps, { attrs, slots }) {
-    const formRef = useAttach(() => toRaw(props.form), () => props.form)
+  props: ['form'],
+  setup(props: IProviderProps, { slots }) {
+    const formRef = useAttach(toRef(props, 'form'))
     provide(FormSymbol, formRef)
+    useInjectionCleaner([
+      FieldSymbol,
+      SchemaMarkupSymbol,
+      SchemaSymbol,
+      SchemaExpressionScopeSymbol,
+      SchemaOptionsSymbol,
+    ])
 
-    return () => h(
-      Fragment,
-      { attrs },
-      slots
-    )
-  }
-}) as unknown as DefineComponent<IProviderProps>
+    return () => h(Fragment, {}, slots)
+  },
+}) as DefineComponent<IProviderProps>

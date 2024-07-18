@@ -1,6 +1,6 @@
 import React, { Fragment, useMemo } from 'react'
 import { Collapse, Badge } from 'antd'
-import { model } from '@formily/reactive'
+import { model, markRaw } from '@formily/reactive'
 import { CollapseProps, CollapsePanelProps } from 'antd/lib/collapse'
 import {
   useField,
@@ -29,8 +29,10 @@ export interface IFormCollapseProps extends CollapseProps {
   formCollapse?: IFormCollapse
 }
 
-type ComposedFormCollapse = React.FC<IFormCollapseProps> & {
-  CollapsePanel?: React.FC<CollapsePanelProps>
+type ComposedFormCollapse = React.FC<
+  React.PropsWithChildren<IFormCollapseProps>
+> & {
+  CollapsePanel?: React.FC<React.PropsWithChildren<CollapsePanelProps>>
   createFormCollapse?: (defaultActiveKeys?: ActiveKeys) => IFormCollapse
 }
 
@@ -42,11 +44,12 @@ const usePanels = () => {
     const field = collapseField.query(collapseField.address.concat(name)).take()
     if (field?.display === 'none' || field?.display === 'hidden') return
     if (schema['x-component']?.indexOf('CollapsePanel') > -1) {
+      const componentProps = field?.componentProps
       panels.push({
         name,
         props: {
-          ...schema?.['x-component-props'],
-          key: schema?.['x-component-props']?.key || name,
+          ...componentProps,
+          key: componentProps?.key || name,
         },
         schema,
       })
@@ -57,7 +60,7 @@ const usePanels = () => {
 
 const createFormCollapse = (defaultActiveKeys?: ActiveKeys) => {
   const formCollapse = model({
-    activeKeys: defaultActiveKeys || [],
+    activeKeys: defaultActiveKeys,
     setActiveKeys(keys: ActiveKeys) {
       formCollapse.activeKeys = keys
     },
@@ -92,7 +95,7 @@ const createFormCollapse = (defaultActiveKeys?: ActiveKeys) => {
       }
     },
   })
-  return formCollapse
+  return markRaw(formCollapse)
 }
 
 export const FormCollapse: ComposedFormCollapse = observer(
@@ -101,9 +104,17 @@ export const FormCollapse: ComposedFormCollapse = observer(
     const panels = usePanels()
     const prefixCls = usePrefixCls('formily-collapse', props)
     const _formCollapse = useMemo(() => {
-      return formCollapse ? formCollapse : createFormCollapse()
+      return formCollapse
+        ? formCollapse
+        : createFormCollapse(props.defaultActiveKey)
     }, [])
-    const activeKey = props.activeKey || _formCollapse?.activeKeys
+
+    const takeActiveKeys = () => {
+      if (props.activeKey) return props.activeKey
+      if (_formCollapse?.activeKeys) return _formCollapse?.activeKeys
+      if (props.accordion) return panels[0]?.name
+      return panels.map((item) => item.name)
+    }
 
     const badgedHeader = (key: SchemaKey, props: any) => {
       const errors = field.form.queryFeedbacks({
@@ -123,10 +134,10 @@ export const FormCollapse: ComposedFormCollapse = observer(
       <Collapse
         {...props}
         className={cls(prefixCls, props.className)}
-        activeKey={activeKey}
+        activeKey={takeActiveKeys()}
         onChange={(key) => {
           props?.onChange?.(key)
-          formCollapse?.setActiveKeys?.(key)
+          _formCollapse?.setActiveKeys?.(key)
         }}
       >
         {panels.map(({ props, schema, name }, index) => (
@@ -144,7 +155,9 @@ export const FormCollapse: ComposedFormCollapse = observer(
   }
 )
 
-const CollapsePanel: React.FC<CollapsePanelProps> = ({ children }) => {
+const CollapsePanel: React.FC<React.PropsWithChildren<CollapsePanelProps>> = ({
+  children,
+}) => {
   return <Fragment>{children}</Fragment>
 }
 

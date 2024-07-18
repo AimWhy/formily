@@ -6,14 +6,21 @@ import styled from 'styled-components'
 export default styled(({ className, dataSource }) => {
   const [selected, select] = useState({
     current: 0,
-    key: ''
+    key: '',
   })
   return (
     <div className={className}>
       <LeftPanel
         dataSource={dataSource}
-        onSelect={info => {
+        onSelect={(info) => {
           select(info)
+          if (chrome && chrome.devtools && chrome.devtools.inspectedWindow) {
+            chrome.devtools.inspectedWindow.eval(
+              `window.__FORMILY_DEV_TOOLS_HOOK__.setVm("${info.key}","${
+                dataSource[info.current][''].id
+              }")`
+            )
+          }
         }}
       />
       <RightPanel

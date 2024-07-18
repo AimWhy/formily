@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react'
-import { isVoidField } from '@formily/core'
+import { isVoidField, Field } from '@formily/core'
 import { useField, observer } from '@formily/react'
 import { Popover } from 'antd'
 import { EditOutlined, CloseOutlined, MessageOutlined } from '@ant-design/icons'
@@ -13,18 +13,20 @@ import cls from 'classnames'
 
 type IPopoverProps = PopoverProps
 
-type ComposedEditable = React.FC<IFormItemProps> & {
-  Popover?: React.FC<IPopoverProps & { title?: React.ReactNode }>
+type ComposedEditable = React.FC<React.PropsWithChildren<IFormItemProps>> & {
+  Popover?: React.FC<
+    React.PropsWithChildren<IPopoverProps & { title?: React.ReactNode }>
+  >
 }
 
 const useParentPattern = () => {
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   return field?.parent?.pattern || field?.form?.pattern
 }
 
 const useEditable = (): [boolean, (payload: boolean) => void] => {
   const pattern = useParentPattern()
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   useLayoutEffect(() => {
     if (pattern === 'editable') {
       return field.setPattern('readPretty')
@@ -32,9 +34,9 @@ const useEditable = (): [boolean, (payload: boolean) => void] => {
   }, [pattern])
   return [
     field.pattern === 'editable',
-    (pyaload: boolean) => {
+    (payload: boolean) => {
       if (pattern !== 'editable') return
-      field.setPattern(pyaload ? 'editable' : 'readPretty')
+      field.setPattern(payload ? 'editable' : 'readPretty')
     },
   ]
 }
@@ -44,9 +46,9 @@ const useFormItemProps = (): IFormItemProps => {
   if (isVoidField(field)) return {}
   if (!field) return {}
   const takeMessage = () => {
-    if (field.errors.length) return field.errors
-    if (field.warnings.length) return field.warnings
-    if (field.successes.length) return field.successes
+    if (field.selfErrors.length) return field.selfErrors
+    if (field.selfWarnings.length) return field.selfWarnings
+    if (field.selfSuccesses.length) return field.selfSuccesses
   }
 
   return {
@@ -61,7 +63,7 @@ export const Editable: ComposedEditable = observer((props) => {
   const [editable, setEditable] = useEditable()
   const pattern = useParentPattern()
   const itemProps = useFormItemProps()
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   const basePrefixCls = usePrefixCls()
   const prefixCls = usePrefixCls('formily-editable')
   const ref = useRef<boolean>()
@@ -133,7 +135,7 @@ export const Editable: ComposedEditable = observer((props) => {
 })
 
 Editable.Popover = observer((props) => {
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   const pattern = useParentPattern()
   const [visible, setVisible] = useState(false)
   const prefixCls = usePrefixCls('formily-editable')
@@ -187,3 +189,5 @@ Editable.Popover = observer((props) => {
     </Popover>
   )
 })
+
+export default Editable

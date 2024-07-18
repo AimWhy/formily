@@ -1,4 +1,8 @@
-import { Validator, ValidatorTriggerType } from '@formily/validator'
+import {
+  IValidatorRules,
+  Validator,
+  ValidatorTriggerType,
+} from '@formily/validator'
 import { FormPath } from '@formily/shared'
 import {
   Form,
@@ -20,8 +24,6 @@ export type AnyFunction = (...args: any[]) => any
 
 export type JSXComponent = any
 
-export type JSXComponenntProps<P> = Record<string, any>
-
 export type LifeCycleHandler<T> = (payload: T, context: any) => void
 
 export type LifeCyclePayload<T> = (
@@ -40,6 +42,11 @@ export enum LifeCycleTypes {
   ON_FORM_INIT = 'onFormInit',
   ON_FORM_MOUNT = 'onFormMount',
   ON_FORM_UNMOUNT = 'onFormUnmount',
+
+  ON_FORM_INPUT_CHANGE = 'onFormInputChange',
+  ON_FORM_VALUES_CHANGE = 'onFormValuesChange',
+  ON_FORM_INITIAL_VALUES_CHANGE = 'onFormInitialValuesChange',
+
   ON_FORM_SUBMIT = 'onFormSubmit',
   ON_FORM_RESET = 'onFormReset',
   ON_FORM_SUBMIT_START = 'onFormSubmitStart',
@@ -51,16 +58,14 @@ export enum LifeCycleTypes {
   ON_FORM_SUBMIT_VALIDATE_END = 'onFormSubmitValidateEnd',
   ON_FORM_SUBMIT_SUCCESS = 'onFormSubmitSuccess',
   ON_FORM_SUBMIT_FAILED = 'onFormSubmitFailed',
-  ON_FORM_VALUES_CHANGE = 'onFormValuesChange',
-  ON_FORM_INITIAL_VALUES_CHANGE = 'onFormInitialValuesChange',
   ON_FORM_VALIDATE_START = 'onFormValidateStart',
   ON_FORM_VALIDATING = 'onFormValidating',
   ON_FORM_VALIDATE_SUCCESS = 'onFormValidateSuccess',
   ON_FORM_VALIDATE_FAILED = 'onFormValidateFailed',
   ON_FORM_VALIDATE_END = 'onFormValidateEnd',
-  ON_FORM_INPUT_CHANGE = 'onFormInputChange',
 
   ON_FORM_GRAPH_CHANGE = 'onFormGraphChange',
+  ON_FORM_LOADING = 'onFormLoading',
 
   /**
    * Field LifeCycle
@@ -70,11 +75,23 @@ export enum LifeCycleTypes {
   ON_FIELD_INPUT_VALUE_CHANGE = 'onFieldInputValueChange',
   ON_FIELD_VALUE_CHANGE = 'onFieldValueChange',
   ON_FIELD_INITIAL_VALUE_CHANGE = 'onFieldInitialValueChange',
+
+  ON_FIELD_SUBMIT = 'onFieldSubmit',
+  ON_FIELD_SUBMIT_START = 'onFieldSubmitStart',
+  ON_FIELD_SUBMITTING = 'onFieldSubmitting',
+  ON_FIELD_SUBMIT_END = 'onFieldSubmitEnd',
+  ON_FIELD_SUBMIT_VALIDATE_START = 'onFieldSubmitValidateStart',
+  ON_FIELD_SUBMIT_VALIDATE_SUCCESS = 'onFieldSubmitValidateSuccess',
+  ON_FIELD_SUBMIT_VALIDATE_FAILED = 'onFieldSubmitValidateFailed',
+  ON_FIELD_SUBMIT_VALIDATE_END = 'onFieldSubmitValidateEnd',
+  ON_FIELD_SUBMIT_SUCCESS = 'onFieldSubmitSuccess',
+  ON_FIELD_SUBMIT_FAILED = 'onFieldSubmitFailed',
   ON_FIELD_VALIDATE_START = 'onFieldValidateStart',
   ON_FIELD_VALIDATING = 'onFieldValidating',
   ON_FIELD_VALIDATE_SUCCESS = 'onFieldValidateSuccess',
   ON_FIELD_VALIDATE_FAILED = 'onFieldValidateFailed',
   ON_FIELD_VALIDATE_END = 'onFieldValidateEnd',
+
   ON_FIELD_LOADING = 'onFieldLoading',
   ON_FIELD_RESET = 'onFieldReset',
   ON_FIELD_MOUNT = 'onFieldMount',
@@ -92,6 +109,7 @@ export type HeartSubscriber = ({
 export interface INodePatch<T> {
   type: 'remove' | 'update'
   address: string
+  oldAddress?: string
   payload?: T
 }
 
@@ -129,8 +147,9 @@ export type IFieldUpdate = {
 }
 
 export interface IFormRequests {
-  validate?: NodeJS.Timeout
-  submit?: NodeJS.Timeout
+  validate?: number
+  submit?: number
+  loading?: number
   updates?: IFieldUpdate[]
   updateIndexes?: Record<string, number>
 }
@@ -228,7 +247,7 @@ export interface IFormProps<T extends object = any> {
   readPretty?: boolean
   effects?: (form: Form<T>) => void
   validateFirst?: boolean
-  controlled?: boolean
+  designable?: boolean
 }
 
 export type IFormMergeStrategy =
@@ -257,16 +276,16 @@ export interface IVoidFieldFactoryProps<
 }
 
 export interface IFieldRequests {
-  validating?: NodeJS.Timeout
-  loading?: NodeJS.Timeout
+  validate?: number
+  submit?: number
+  loading?: number
   batch?: () => void
 }
 
 export interface IFieldCaches {
   value?: any
   initialValue?: any
-  feedbacks?: IFieldFeedback[]
-  inputing?: boolean
+  inputting?: boolean
 }
 
 export type FieldDisplayTypes = 'none' | 'hidden' | 'visible' | ({} & string)
@@ -278,29 +297,33 @@ export type FieldPatternTypes =
   | 'readPretty'
   | ({} & string)
 
-export type FieldValidator = Validator
+export type FieldValidatorContext = IValidatorRules & {
+  field?: Field
+  form?: Form
+  value?: any
+}
+
+export type FieldValidator = Validator<FieldValidatorContext>
 
 export type FieldDataSource = {
-  label?: string
-  value?: string
-  title?: string
-  key?: string
-  text?: string
+  label?: any
+  value?: any
+  title?: any
+  key?: any
+  text?: any
   children?: FieldDataSource
   [key: string]: any
 }[]
 
-export type FieldComponent<Component extends JSXComponent> =
-  | [Component]
-  | [Component, JSXComponenntProps<Component>]
-  | boolean
-  | any[]
+export type FieldComponent<
+  Component extends JSXComponent,
+  ComponentProps = any
+> = [Component] | [Component, ComponentProps] | boolean | any[]
 
-export type FieldDecorator<Decorator extends JSXComponent> =
-  | [Decorator]
-  | [Decorator, JSXComponenntProps<Decorator>]
-  | boolean
-  | any[]
+export type FieldDecorator<
+  Decorator extends JSXComponent,
+  ComponentProps = any
+> = [Decorator] | [Decorator, ComponentProps] | boolean | any[]
 
 export type FieldReaction = (field: Field) => void
 export interface IFieldProps<
@@ -330,6 +353,8 @@ export interface IFieldProps<
   decorator?: FieldDecorator<Decorator>
   component?: FieldComponent<Component>
   reactions?: FieldReaction[] | FieldReaction
+  content?: any
+  data?: any
 }
 
 export interface IVoidFieldProps<
@@ -352,6 +377,8 @@ export interface IVoidFieldProps<
   decorator?: FieldDecorator<Decorator>
   component?: FieldComponent<Component>
   reactions?: FieldReaction[] | FieldReaction
+  content?: any
+  data?: any
 }
 
 export interface IFieldResetOptions {
@@ -397,13 +424,16 @@ export type FieldMatchPattern = FormPathPattern | Query | GeneralField
 export interface IFieldStateSetter {
   (pattern: FieldMatchPattern, setter: (state: IFieldState) => void): void
   (pattern: FieldMatchPattern, setter: Partial<IFieldState>): void
-  (pattern: FieldMatchPattern): void
 }
 
 export interface IFieldStateGetter {
-  <Getter extends (state: IFieldState) => any>(
+  <Getter extends (state: IGeneralFieldState) => any>(
     pattern: FieldMatchPattern,
     getter: Getter
   ): ReturnType<Getter>
-  (pattern: FieldMatchPattern): IFieldState
+  (pattern: FieldMatchPattern): IGeneralFieldState
+}
+
+export interface IFieldActions {
+  [key: string]: (...args: any[]) => any
 }

@@ -9,7 +9,11 @@ At the same time, we can also implement linkage verification in effects or x-rea
 
 Specific rule verification document reference [FieldValidator](https://core.formilyjs.org/api/models/field#fieldvalidator)
 
+Form validation is an important part of optimizing user experience and ensuring data accuracy in forms. Formily provides various validation methods, including built-in rule validation, built-in format validation, and custom rule validation. In the following sections, we will introduce these validation methods one by one.
+
 ## Built-in rule check
+
+Built-in rule validation refers to the common validation rules provided by Formily, such as required, max, min, len, enum, const, multipleOf, etc. These rules can be described using JSON Schema properties or the x-validator property. Formily supports multiple ways of writing built-in rules and it is recommended for teams to establish internal conventions based on their usage habits.
 
 #### Markup Schema Use Cases
 
@@ -968,11 +972,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1069,7 +1073,7 @@ export default () => (
         title="Locally defined style"
         required
         x-validator={{
-          validator(value, rule) {
+          validator(value) {
             if (!value) return ''
             return value === '123'
           },
@@ -1082,7 +1086,7 @@ export default () => (
         name="validator_style_4"
         title="Locally defined style"
         required
-        x-validator={(value, rule) => {
+        x-validator={(value) => {
           if (!value) return ''
           if (value < 10) {
             return {
@@ -1136,11 +1140,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1293,11 +1297,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1393,7 +1397,7 @@ export default () => (
       title="Locally defined style"
       required
       validator={{
-        validator(value, rule) {
+        validator(value) {
           if (!value) return ''
           return value === '123'
         },
@@ -1406,7 +1410,7 @@ export default () => (
       name="validator_style_4"
       title="Locally defined style"
       required
-      validator={(value, rule) => {
+      validator={(value) => {
         if (!value) return ''
         if (value < 10) {
           return {
@@ -1426,6 +1430,136 @@ export default () => (
         }
       }}
       component={[NumberPicker]}
+      decorator={[FormItem]}
+    />
+  </Form>
+)
+```
+
+## Using Third-Party Validation Libraries
+
+With the powerful validation engine of Formily, it is extremely convenient to adapt to third-party validation libraries such as yup. Here is an example of how to use it:
+
+#### JSON Schema Cases
+
+```tsx
+import React from 'react'
+import { createForm, registerValidateRules } from '@formily/core'
+import { createSchemaField } from '@formily/react'
+import { Form, FormItem, Input, NumberPicker } from '@formily/antd'
+import { string } from 'yup'
+
+const form = createForm()
+
+const SchemaField = createSchemaField({
+  components: {
+    Input,
+    FormItem,
+    NumberPicker,
+  },
+})
+
+registerValidateRules({
+  yup: async (value, rule) => {
+    try {
+      await rule.yup().validate(value)
+      return '' // Return an empty string when validation is successful
+    } catch (err) {
+      return err.errors.join(',') // Return the error message when validation fails
+    }
+  },
+})
+
+const schema = {
+  type: 'object',
+  properties: {
+    global_style_1: {
+      title: 'Maximum length is 2',
+      'x-validator': [
+        {
+          triggerType: 'onBlur',
+          yup: () => string().required('required'),
+        },
+        {
+          triggerType: 'onBlur',
+          yup: () => string().max(2, 'Maximum length is 2'),
+        },
+      ],
+      'x-component': 'Input',
+      'x-decorator': 'FormItem',
+    },
+    global_style_2: {
+      title: 'email',
+      required: true,
+      'x-validator': {
+        triggerType: 'onBlur',
+        yup: () => string().email(),
+      },
+      'x-component': 'Input',
+      'x-decorator': 'FormItem',
+    },
+  },
+}
+
+export default () => (
+  <Form form={form} labelCol={6} wrapperCol={10}>
+    <SchemaField schema={schema} />
+  </Form>
+)
+```
+
+#### Pure JSX Cases
+
+```tsx
+import React from 'react'
+import { createForm, registerValidateRules } from '@formily/core'
+import { Field } from '@formily/react'
+import { Form, FormItem, Input, NumberPicker } from '@formily/antd'
+import { string, number } from 'yup'
+
+const form = createForm()
+
+registerValidateRules({
+  yup: async (value, rule) => {
+    try {
+      await rule.yup().validate(value)
+      return '' // Return an empty string when validation is successful
+    } catch (err) {
+      return err.errors.join(',') // Return the error message when validation fails
+    }
+  },
+})
+
+export default () => (
+  <Form form={form} labelCol={6} wrapperCol={10}>
+    <Field
+      name="global_style_1"
+      title="email"
+      required
+      validator={{
+        yup: () => string().email(),
+      }}
+      component={[Input]}
+      decorator={[FormItem]}
+    />
+    <Field
+      name="global_style_2"
+      title="max 30"
+      required
+      validator={{
+        yup: () => number().max(30),
+      }}
+      component={[NumberPicker]}
+      decorator={[FormItem]}
+    />
+    <Field
+      name="global_style_3"
+      title="email"
+      required
+      validator={{
+        yup: () => string().email(),
+      }}
+      component={[Input]}
       decorator={[FormItem]}
     />
   </Form>
@@ -1955,7 +2089,7 @@ export default () => (
         title="AA"
         required
         x-reactions={(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('bb').value() >= field.value
               ? 'AA must be greater than BB'
               : ''
@@ -1968,7 +2102,7 @@ export default () => (
         title="BB"
         required
         x-reactions={(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('aa').value() <= field.value
               ? 'AA must be greater than BB'
               : ''
@@ -2005,7 +2139,7 @@ const schema = {
       title: 'AA',
       required: true,
       'x-reactions': `{{(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('bb').value() >= field.value ? 'AA must be greater than BB' : ''
       }}}`,
       'x-component': 'NumberPicker',
@@ -2018,7 +2152,7 @@ const schema = {
         dependencies: ['aa'],
         fulfill: {
           state: {
-            errors:
+            selfErrors:
               "{{$deps[0] <= $self.value ? 'AA must be greater than BB' : ''}}",
           },
         },
@@ -2053,7 +2187,7 @@ export default () => (
       title="AA"
       required
       reactions={(field) => {
-        field.errors =
+        field.selfErrors =
           field.query('bb').value() >= field.value
             ? 'AA must be greater than BB'
             : ''
@@ -2066,7 +2200,7 @@ export default () => (
       title="BB"
       required
       reactions={(field) => {
-        field.errors =
+        field.selfErrors =
           field.query('aa').value() <= field.value
             ? 'AA must be greater than BB'
             : ''

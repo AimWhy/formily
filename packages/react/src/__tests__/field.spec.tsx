@@ -1,6 +1,13 @@
 import React from 'react'
+import { act } from 'react-dom/test-utils'
 import { render, fireEvent, waitFor } from '@testing-library/react'
-import { createForm } from '@formily/core'
+import { createForm, onFieldUnmount, isArrayField } from '@formily/core'
+import {
+  isField,
+  Field as FieldType,
+  isVoidField,
+  onFieldChange,
+} from '@formily/core'
 import {
   FormProvider,
   ArrayField,
@@ -13,10 +20,10 @@ import {
   connect,
   mapProps,
   mapReadPretty,
-} from '../'
+} from '..'
 import { ReactiveField } from '../components/ReactiveField'
 import { expectThrowError } from './shared'
-import { isField, isVoidField, onFieldChange } from '@formily/core'
+
 type InputProps = {
   value?: string
   onChange?: (...args: any) => void
@@ -26,8 +33,8 @@ type CustomProps = {
   list?: string[]
 }
 
-const Decorator: React.FC = (props) => <div>{props.children}</div>
-const Input: React.FC<InputProps> = (props) => (
+const Decorator = (props) => <div>{props.children}</div>
+const Input: React.FC<React.PropsWithChildren<InputProps>> = (props) => (
   <input
     {...props}
     value={props.value || ''}
@@ -124,7 +131,7 @@ test('ReactiveField', () => {
   render(<ReactiveField field={null}>{() => <div></div>}</ReactiveField>)
 })
 
-test('useAttch', () => {
+test('useAttach basic', async () => {
   const form = createForm()
   const MyComponent = (props: any) => {
     return (
@@ -136,14 +143,57 @@ test('useAttch', () => {
   const { rerender } = render(<MyComponent name="aa" />)
   expect(form.query('aa').take().mounted).toBeTruthy()
   rerender(<MyComponent name="bb" />)
-  expect(form.query('aa').take().mounted).toBeFalsy()
-  expect(form.query('bb').take().mounted).toBeTruthy()
+  await waitFor(() => {
+    expect(form.query('aa').take().mounted).toBeFalsy()
+    expect(form.query('bb').take().mounted).toBeTruthy()
+  })
+})
+
+test('useAttach with array field', async () => {
+  const form = createForm()
+  const MyComponent = () => {
+    return (
+      <FormProvider form={form}>
+        <ArrayField
+          name="array"
+          initialValue={[{ input: '11' }, { input: '22' }]}
+        >
+          {(field) => {
+            return field.value.map((val, index) => {
+              return (
+                <Field
+                  key={index}
+                  name={index + '.input'}
+                  decorator={[Decorator]}
+                  component={[Input]}
+                />
+              )
+            })
+          }}
+        </ArrayField>
+      </FormProvider>
+    )
+  }
+  render(<MyComponent />)
+  await waitFor(() => {
+    expect(form.query('array.0.input').take().mounted).toBeTruthy()
+    expect(form.query('array.1.input').take().mounted).toBeTruthy()
+  })
+  form.query('array').take((field) => {
+    if (isArrayField(field)) {
+      field.moveDown(0)
+    }
+  })
+  await waitFor(() => {
+    expect(form.query('array.0.input').take().mounted).toBeTruthy()
+    expect(form.query('array.1.input').take().mounted).toBeTruthy()
+  })
 })
 
 test('useFormEffects', async () => {
   const form = createForm()
-  const CustomField = observer((props: { tag?: string }) => {
-    const field = useField<Formily.Core.Models.Field>()
+  const CustomField = observer(() => {
+    const field = useField<FieldType>()
     useFormEffects(() => {
       onFieldChange('aa', ['value'], (target) => {
         if (isVoidField(target)) return
@@ -152,27 +202,30 @@ test('useFormEffects', async () => {
     })
     return <div data-testid="custom-value">{field.value}</div>
   })
-  const { queryByTestId, rerender } = render(
-    <FormProvider form={form}>
-      <Field name="aa" decorator={[Decorator]} component={[Input]} />
-      <Field name="bb" component={[CustomField, { tag: 'xxx' }]} />
-    </FormProvider>
-  )
-  expect(queryByTestId('custom-value').textContent).toEqual('')
-  form.query('aa').take((aa) => {
-    if (isField(aa)) {
-      aa.setValue('123')
-    }
+  act(async () => {
+    const { queryByTestId, rerender } = render(
+      <FormProvider form={form}>
+        <Field name="aa" decorator={[Decorator]} component={[Input]} />
+        <Field name="bb" component={[CustomField, { tag: 'xxx' }]} />
+      </FormProvider>
+    )
+
+    expect(queryByTestId('custom-value')?.textContent).toEqual('')
+    form.query('aa').take((aa) => {
+      if (isField(aa)) {
+        aa.setValue('123')
+      }
+    })
+    await waitFor(() => {
+      expect(queryByTestId('custom-value')?.textContent).toEqual('123')
+    })
+    rerender(
+      <FormProvider form={form}>
+        <Field name="aa" decorator={[Decorator]} component={[Input]} />
+        <Field name="bb" component={[CustomField, { tag: 'yyy' }]} />
+      </FormProvider>
+    )
   })
-  await waitFor(() => {
-    expect(queryByTestId('custom-value').textContent).toEqual('123')
-  })
-  rerender(
-    <FormProvider form={form}>
-      <Field name="aa" decorator={[Decorator]} component={[Input]} />
-      <Field name="bb" component={[CustomField, { tag: 'yyy' }]} />
-    </FormProvider>
-  )
 })
 
 test('connect', async () => {
@@ -224,4 +277,63 @@ test('connect', async () => {
     expect(queryByText('123')).toBeNull()
     expect(queryByText('read pretty')).toBeVisible()
   })
+})
+
+test('fields unmount and validate', async () => {
+  const fn = jest.fn()
+  const form = createForm({
+    initialValues: {
+      parent: {
+        type: 'mounted',
+      },
+    },
+    effects: () => {
+      onFieldUnmount('parent.child', () => {
+        fn()
+      })
+    },
+  })
+  const Parent = observer(() => {
+    const field = useField<FieldType>()
+    if (field.value.type === 'mounted') {
+      return (
+        <Field
+          name="child"
+          component={[Input]}
+          validator={{ required: true }}
+        />
+      )
+    }
+    return <div data-testid="unmounted"></div>
+  })
+
+  const MyComponent = () => {
+    return (
+      <FormProvider form={form}>
+        <Field name="parent" component={[Parent]} />
+      </FormProvider>
+    )
+  }
+  render(<MyComponent />)
+
+  try {
+    await form.validate()
+  } catch {}
+
+  expect(form.invalid).toBeTruthy()
+
+  form.query('parent').take((field) => {
+    field.setState((state) => {
+      state.value.type = 'unmounted'
+    })
+  })
+
+  await waitFor(() => {
+    expect(fn.mock.calls.length).toBe(1)
+  })
+
+  try {
+    await form.validate()
+  } catch {}
+  expect(form.invalid).toBeTruthy()
 })

@@ -22,7 +22,7 @@
   - 弹窗/抽屉表单
   - 分步表单
   - 选项卡表单
-- 动态渲染述求很强烈
+- 动态渲染诉求很强烈
   - 字段配置化，让非专业前端也能快速搭建复杂表单
   - 跨端渲染，一份 JSON Schema，多端适配
   - 如何在表单协议中描述布局？
@@ -47,7 +47,7 @@
 
 刚好，github 社区为这样的 MVVM 模型抽象出了一个叫 [Mobx](https://github.com/mobxjs/mobx) 的状态管理解决方案，Mobx 最核心的能力就是它的依赖追踪机制和响应式模型的抽象能力。
 
-所以，借助 Mobx，完全可以解决表单字段输入过程中的 O(n)问题，而且是可以很优雅的解决，但是 Formily2.x 在实现的过程中发现 Mobx 还是存在一些不兼容 Formily 核心思想的问题，最终，只能重新造了一个轮子，延续 Mobx 的核心思想的 [@formily/reactive](https://reactive.formilyjs.org)
+所以，借助 Mobx，完全可以解决表单字段输入过程中的 O(n)问题，而且是可以很优雅的解决，但是 Formily2.x 在实现的过程中发现 Mobx 还是存在一些不兼容 Formily 核心思想的问题，最终，只能重新造了一个轮子，延续 Mobx 的核心思想的 [@formily/reactive](https://reactive.formilyjs.org/zh-CN)
 
 这里提一下 [react-hook-form](https://github.com/react-hook-form/react-hook-form) ，非常流行，号称业界性能第一的表单方案，我们看看它最简单的案例：
 
@@ -259,7 +259,7 @@ interface Field {
 - 条件满足的动作
 - 条件不满足的动作
 
-来实现的，因为内部状态管理借助了 类似 Mobx 的[@formily/reactive](https://reactive.formilyjs.org)方案，所以，Formily 很轻松的就实现了被动和主动联动场景，覆盖了绝大多数业务需求。
+来实现的，因为内部状态管理借助了 类似 Mobx 的[@formily/reactive](https://reactive.formilyjs.org/zh-CN)方案，所以，Formily 很轻松的就实现了被动和主动联动场景，覆盖了绝大多数业务需求。
 
 所以，我们的表单完全可以使用协议来描述了，不管是再复杂的布局，还是很复杂的联动，都能做到可配置。
 
@@ -267,7 +267,7 @@ interface Field {
 
 前面讲了对于一开始的各种问题的解法，那么现在我们如何设计才能让 Formily 更加自洽且优雅呢？
 
-![](https://img.alicdn.com/imgextra/i4/O1CN01XebYW51E96eP1AcwZ_!!6000000000308-55-tps-1939-1199.svg)
+![](https://img.alicdn.com/imgextra/i3/O1CN01iEwHrP1NUw84xTded_!!6000000001574-55-tps-1939-1199.svg)
 
 这张图主要将 Formily 分为了内核层，UI 桥接层，扩展组件层，和配置应用层。
 
@@ -289,7 +289,6 @@ JSON Schema 独立存在，给 UI 桥接层消费，保证了协议驱动在不�
 import React from 'react'
 import { Table, Tooltip } from 'antd'
 import { QuestionCircleOutlined } from '@ant-design/icons'
-import 'antd/lib/table/style'
 
 const text = (content, tooltips) => {
   if (tooltips) {
@@ -474,7 +473,6 @@ export default () => {
   - 盒马
   - 阿里妈妈
   - 数据平台
-  - 飞猪
   - ICBU
   - 口碑
   - 钉钉
@@ -490,7 +488,7 @@ export default () => {
 
 问：Formily2.x 相比于 1.x 最大的优势是什么？
 
-答：学习成本的大大降低，对，核心是为了让用户更快速的理解 Formily，我们在 2.x 设计的过程中极力的避免出现各种隐晦逻辑，边界问题，同时因为移除了rxjs/styled-components的依赖，整体体积大大降低
+答：学习成本的大大降低，对，核心是为了让用户更快速的理解 Formily，我们在 2.x 设计的过程中极力的避免出现各种隐晦逻辑，边界问题，同时因为移除了 rxjs/styled-components 的依赖，整体体积大大降低
 
 问：Formily2.x 的浏览器兼容性如何？
 

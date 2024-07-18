@@ -12,8 +12,6 @@ import { Form, FormItem, Input, Password, Submit } from '@formily/antd'
 import { Tabs, Card } from 'antd'
 import * as ICONS from '@ant-design/icons'
 import { VerifyCode } from './VerifyCode'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const normalForm = createForm({
   validateFirst: true,
@@ -75,7 +73,7 @@ export default () => {
                   title="Password"
                   required
                   x-decorator="FormItem"
-                  x-component="Input"
+                  x-component="Password"
                   x-component-props={{
                     prefix: "{{icon('LockOutlined')}}",
                   }}
@@ -158,8 +156,6 @@ import { Form, FormItem, Input, Password, Submit } from '@formily/antd'
 import { Tabs, Card } from 'antd'
 import * as ICONS from '@ant-design/icons'
 import { VerifyCode } from './VerifyCode'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const normalForm = createForm({
   validateFirst: true,
@@ -311,8 +307,6 @@ import { Form, FormItem, Input, Password, Submit } from '@formily/antd'
 import { Tabs, Card } from 'antd'
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons'
 import { VerifyCode } from './VerifyCode'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const normalForm = createForm({
   validateFirst: true,
@@ -458,8 +452,6 @@ import {
 import { action } from '@formily/reactive'
 import { Card, Button } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -522,7 +514,7 @@ const SchemaField = createSchemaField({
       fetch('//unpkg.com/china-location/dist/location.json')
         .then((res) => res.json())
         .then(
-          action((data) => {
+          action.bound((data) => {
             field.dataSource = transform(data)
             field.loading = false
           })
@@ -570,7 +562,7 @@ export default () => {
                   dependencies: ['.confirm_password'],
                   fulfill: {
                     state: {
-                      errors:
+                      selfErrors:
                         '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
                     },
                   },
@@ -591,7 +583,7 @@ export default () => {
                   dependencies: ['.password'],
                   fulfill: {
                     state: {
-                      errors:
+                      selfErrors:
                         '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
                     },
                   },
@@ -795,8 +787,6 @@ import {
 import { action } from '@formily/reactive'
 import { Card, Button } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -811,7 +801,7 @@ const IDUpload = (props) => {
         authorization: 'authorization-text',
       }}
     >
-      <Button icon={<UploadOutlined />}>上传复印件</Button>
+      <Button icon={<UploadOutlined />}>Upload a copy</Button>
     </Upload>
   )
 }
@@ -859,7 +849,7 @@ const SchemaField = createSchemaField({
       fetch('//unpkg.com/china-location/dist/location.json')
         .then((res) => res.json())
         .then(
-          action((data) => {
+          action.bound((data) => {
             field.dataSource = transform(data)
             field.loading = false
           })
@@ -892,7 +882,7 @@ const schema = {
           dependencies: ['.confirm_password'],
           fulfill: {
             state: {
-              errors:
+              selfErrors:
                 '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "确认password不匹配" : ""}}',
             },
           },
@@ -913,7 +903,7 @@ const schema = {
           dependencies: ['.password'],
           fulfill: {
             state: {
-              errors:
+              selfErrors:
                 '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
             },
           },
@@ -1125,7 +1115,7 @@ export default () => {
 ```tsx
 import React from 'react'
 import { createForm } from '@formily/core'
-import { Field, VoidField } from '@formily/react'
+import { Field, VoidField, ArrayField } from '@formily/react'
 import {
   Form,
   FormItem,
@@ -1138,12 +1128,13 @@ import {
   FormGrid,
   Upload,
   FormButtonGroup,
+  ArrayBase,
+  Editable,
+  FormLayout,
 } from '@formily/antd'
 import { action } from '@formily/reactive'
 import { Card, Button } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
-import 'antd/lib/tabs/style'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -1200,7 +1191,7 @@ export default () => {
             ]}
             reactions={(field) => {
               const confirm = field.query('.confirm_password')
-              field.errors =
+              field.selfErrors =
                 confirm.get('value') &&
                 field.value &&
                 field.value !== confirm.get('value')
@@ -1221,7 +1212,7 @@ export default () => {
             ]}
             reactions={(field) => {
               const password = field.query('.password')
-              field.errors =
+              field.selfErrors =
                 password.get('value') &&
                 field.value &&
                 field.value !== password.get('value')
@@ -1333,7 +1324,7 @@ export default () => {
               fetch('//unpkg.com/china-location/dist/location.json')
                 .then((res) => res.json())
                 .then(
-                  action((data) => {
+                  action.bound((data) => {
                     field.dataSource = transform(data)
                     field.loading = false
                   })
@@ -1347,6 +1338,81 @@ export default () => {
             decorator={[FormItem]}
             component={[IDUpload]}
           />
+          <ArrayField name="contacts" title="Contacts" decorator={[FormItem]}>
+            {(field) => (
+              <ArrayBase>
+                {field.value?.map((item, index) => (
+                  <div key={index} className="array-items-item">
+                    <Field
+                      name={`${index}`}
+                      title="Contact Informations"
+                      component={[Editable.Popover]}
+                      reactions={(field) => {
+                        field.title =
+                          field.query('.[].name').value() || field.title
+                      }}
+                    >
+                      <VoidField
+                        name="layout"
+                        component={[FormLayout, { layout: 'vertical' }]}
+                      >
+                        <Field
+                          name="name"
+                          title="Name"
+                          required
+                          decorator={[FormItem]}
+                          component={[
+                            Input,
+                            {
+                              style: {
+                                width: 300,
+                              },
+                            },
+                          ]}
+                        />
+                        <Field
+                          name="email"
+                          title="Email"
+                          required
+                          validator="email"
+                          decorator={[FormItem]}
+                          component={[
+                            Input,
+                            {
+                              style: {
+                                width: 300,
+                              },
+                            },
+                          ]}
+                        />
+                        <Field
+                          name="phone"
+                          title="Phone Number"
+                          required
+                          validator="phone"
+                          decorator={[FormItem]}
+                          component={[
+                            Input,
+                            {
+                              style: {
+                                width: 300,
+                              },
+                            },
+                          ]}
+                        />
+                      </VoidField>
+                    </Field>
+                    <FormItem.BaseItem>
+                      <ArrayBase.Remove index={index} />
+                      <ArrayBase.MoveDown index={index} />
+                      <ArrayBase.MoveUp index={index} />
+                    </FormItem.BaseItem>
+                  </div>
+                ))}
+                <ArrayBase.Addition title="Add Contact" />
+              </ArrayBase>
+            )}
+          </ArrayField>
           <FormButtonGroup.FormItem>
             <Submit block size="large">
               Sign up
@@ -1376,7 +1442,6 @@ import {
   FormButtonGroup,
 } from '@formily/antd'
 import { Card } from 'antd'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -1444,7 +1509,7 @@ export default () => {
                   dependencies: ['.confirm_password'],
                   fulfill: {
                     state: {
-                      errors:
+                      selfErrors:
                         '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
                     },
                   },
@@ -1465,7 +1530,7 @@ export default () => {
                   dependencies: ['.password'],
                   fulfill: {
                     state: {
-                      errors:
+                      selfErrors:
                         '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
                     },
                   },
@@ -1500,7 +1565,6 @@ import {
   FormButtonGroup,
 } from '@formily/antd'
 import { Card } from 'antd'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -1553,7 +1617,7 @@ const schema = {
           dependencies: ['.confirm_password'],
           fulfill: {
             state: {
-              errors:
+              selfErrors:
                 '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
             },
           },
@@ -1574,7 +1638,7 @@ const schema = {
           dependencies: ['.password'],
           fulfill: {
             state: {
-              errors:
+              selfErrors:
                 '{{$deps[0] && $self.value && $self.value !== $deps[0] ? "Confirm that the password does not match" : ""}}',
             },
           },
@@ -1629,7 +1693,6 @@ import {
   FormButtonGroup,
 } from '@formily/antd'
 import { Card } from 'antd'
-import 'antd/lib/button/style'
 
 const form = createForm({
   validateFirst: true,
@@ -1687,7 +1750,7 @@ export default () => {
             ]}
             reactions={(field) => {
               const confirm = field.query('.confirm_password')
-              field.errors =
+              field.selfErrors =
                 confirm.get('value') &&
                 field.value &&
                 field.value !== confirm.get('value')
@@ -1708,7 +1771,7 @@ export default () => {
             ]}
             reactions={(field) => {
               const confirm = field.query('.password')
-              field.errors =
+              field.selfErrors =
                 confirm.get('value') &&
                 field.value &&
                 field.value !== confirm.get('value')

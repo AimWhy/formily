@@ -1,44 +1,41 @@
-import React, { Fragment, useContext, useMemo } from 'react'
-import { isFn, isValid } from '@formily/shared'
+import React, { Fragment, useMemo } from 'react'
+import { isBool, isFn, isValid } from '@formily/shared'
+import { GeneralField } from '@formily/core'
 import { Schema } from '@formily/json-schema'
-import {
-  SchemaContext,
-  SchemaOptionsContext,
-  SchemaExpressionScopeContext,
-} from '../shared'
-import { IRecursionFieldProps } from '../types'
-import { useField } from '../hooks'
+import { SchemaContext } from '../shared'
+import { IRecursionFieldProps, ReactFC } from '../types'
+import { useField, useExpressionScope } from '../hooks'
 import { ObjectField } from './ObjectField'
 import { ArrayField } from './ArrayField'
 import { Field } from './Field'
 import { VoidField } from './VoidField'
 
-export const RecursionField: React.FC<IRecursionFieldProps> = (props) => {
-  const schema = new Schema(props.schema)
+const useFieldProps = (schema: Schema) => {
+  const scope = useExpressionScope()
+  return schema.toFieldProps({
+    scope,
+  }) as any
+}
+
+const useBasePath = (props: IRecursionFieldProps) => {
   const parent = useField()
-  const options = useContext(SchemaOptionsContext)
-  const scope = useContext(SchemaExpressionScopeContext)
-  const fieldSchema = useMemo(() => {
-    return schema?.compile({
-      ...options.scope,
-      ...scope,
-    })
-  }, [schema])
-  const fieldProps = useMemo(() => fieldSchema?.toFieldProps(options) as any, [
-    fieldSchema,
-  ])
-  const getBasePath = () => {
-    if (props.onlyRenderProperties) {
-      return props.basePath || parent?.address.concat(props.name)
-    }
-    return props.basePath || parent?.address
+  if (props.onlyRenderProperties) {
+    return props.basePath || parent?.address.concat(props.name)
   }
-  const basePath = getBasePath()
-  const renderProperties = (field?: Formily.Core.Types.GeneralField) => {
+  return props.basePath || parent?.address
+}
+
+export const RecursionField: ReactFC<IRecursionFieldProps> = (props) => {
+  const basePath = useBasePath(props)
+  const fieldSchema = useMemo(() => new Schema(props.schema), [props.schema])
+  const fieldProps = useFieldProps(fieldSchema)
+  const renderProperties = (field?: GeneralField) => {
     if (props.onlyRenderSelf) return
+    const properties = Schema.getOrderProperties(fieldSchema)
+    if (!properties.length) return
     return (
       <Fragment>
-        {fieldSchema.mapProperties((item, name, index) => {
+        {properties.map(({ schema: item, key: name }, index) => {
           const base = field?.address || basePath
           let schema: Schema = item
           if (isFn(props.mapProperties)) {
@@ -52,16 +49,28 @@ export const RecursionField: React.FC<IRecursionFieldProps> = (props) => {
               return null
             }
           }
+          if (isBool(props.propsRecursion) && props.propsRecursion) {
+            return (
+              <RecursionField
+                propsRecursion={true}
+                filterProperties={props.filterProperties}
+                mapProperties={props.mapProperties}
+                schema={schema}
+                key={`${index}-${name}`}
+                name={name}
+                basePath={base}
+              />
+            )
+          }
           return (
             <RecursionField
               schema={schema}
-              key={index}
+              key={`${index}-${name}`}
               name={name}
               basePath={base}
             />
           )
         })}
-        {fieldSchema['x-content']}
       </Fragment>
     )
   }
@@ -87,11 +96,7 @@ export const RecursionField: React.FC<IRecursionFieldProps> = (props) => {
         </VoidField>
       )
     }
-    return (
-      <Field {...fieldProps} name={props.name} basePath={basePath}>
-        {fieldSchema['x-content']}
-      </Field>
-    )
+    return <Field {...fieldProps} name={props.name} basePath={basePath} />
   }
 
   if (!fieldSchema) return <Fragment />

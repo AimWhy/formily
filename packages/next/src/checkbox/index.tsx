@@ -7,8 +7,8 @@ import {
 import { PreviewText } from '../preview-text'
 import { mapSize } from '../__builtins__'
 
-type ComposedCheckbox = React.FC<CheckboxProps> & {
-  Group?: React.FC<CheckboxGroupProps>
+type ComposedCheckbox = React.FC<React.PropsWithChildren<CheckboxProps>> & {
+  Group?: React.FC<React.PropsWithChildren<CheckboxGroupProps>>
 }
 
 export const Checkbox: ComposedCheckbox = connect(
@@ -16,7 +16,6 @@ export const Checkbox: ComposedCheckbox = connect(
   mapProps(
     {
       value: 'checked',
-      onInput: 'onChange',
     },
     mapSize
   )
@@ -30,7 +29,9 @@ Checkbox.Group = connect(
     },
     mapSize
   ),
-  mapReadPretty(PreviewText.Select)
+  mapReadPretty(PreviewText.Select, {
+    mode: 'multiple',
+  })
 )
 
 export default Checkbox

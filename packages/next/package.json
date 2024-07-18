@@ -1,6 +1,6 @@
 {
   "name": "@formily/next",
-  "version": "2.0.0-beta.56",
+  "version": "2.3.2",
   "license": "MIT",
   "main": "lib",
   "umd:main": "dist/formily.next.umd.production.js",
@@ -8,6 +8,14 @@
   "jsdelivr": "dist/formily.next.umd.production.js",
   "jsnext:main": "esm",
   "module": "esm",
+  "sideEffects": [
+    "dist/*",
+    "esm/*.js",
+    "lib/*.js",
+    "src/*.ts",
+    "*.scss",
+    "**/*/style.js"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alibaba/formily.git"
@@ -22,34 +30,42 @@
   },
   "scripts": {
     "start": "dumi dev",
-    "build": "rimraf -rf lib esm dist && npm run build:cjs && npm run build:esm && npm run build:umd && npm run build:style",
+    "build": "rimraf -rf lib esm dist && npm run create:style && npm run build:cjs && npm run build:esm && npm run build:umd && npm run build:style",
+    "create:style": "ts-node create-style",
     "build:style": "ts-node build-style",
-    "build:cjs": "tsc --declaration",
-    "build:esm": "tsc --declaration --module es2015 --outDir esm",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module es2015 --outDir esm",
     "build:umd": "rollup --config",
     "build:docs": "dumi build"
   },
   "peerDependencies": {
     "@alifd/next": "^1.19.0",
-    "@types/react": ">=16.8.0 || >=17.0.0",
-    "@types/react-dom": ">=16.8.0 || >=17.0.0",
-    "react": ">=16.8.0 || >=17.0.0",
+    "@types/react": ">=16.8.0",
+    "@types/react-dom": ">=16.8.0",
+    "react": ">=16.8.0",
     "react-dom": ">=16.8.0",
-    "react-is": ">=16.8.0 || >=17.0.0"
+    "react-is": ">=16.8.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@types/react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@umijs/plugin-sass": "^1.1.1",
     "dumi": "^1.1.0-rc.8"
   },
   "dependencies": {
-    "@ant-design/icons": "^4.0.0",
-    "@formily/core": "2.0.0-beta.56",
-    "@formily/json-schema": "2.0.0-beta.56",
-    "@formily/react": "2.0.0-beta.56",
-    "@formily/reactive": "2.0.0-beta.56",
-    "@formily/reactive-react": "2.0.0-beta.56",
-    "@formily/shared": "2.0.0-beta.56",
-    "@juggle/resize-observer": "^3.3.1",
+    "@formily/core": "2.3.2",
+    "@formily/grid": "2.3.2",
+    "@formily/json-schema": "2.3.2",
+    "@formily/react": "2.3.2",
+    "@formily/reactive": "2.3.2",
+    "@formily/reactive-react": "2.3.2",
+    "@formily/shared": "2.3.2",
     "classnames": "^2.2.6",
     "react-sortable-hoc": "^1.11.0",
     "react-sticky-box": "^0.9.3"
@@ -57,5 +73,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "2c44ae410a73f02735c63c6430e021a50e21f3ec"
+  "gitHead": "ac79c196ae9324889aca5e0501146f9b37b04283"
 }

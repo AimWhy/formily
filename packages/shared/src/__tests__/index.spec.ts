@@ -4,6 +4,7 @@ import { isEqual } from '../compare'
 import {
   toArr,
   every,
+  move,
   some,
   findIndex,
   find,
@@ -18,10 +19,22 @@ import { globalThisPolyfill } from '../global'
 import { isValid, isEmpty } from '../isEmpty'
 import { stringLength } from '../string'
 import { Subscribable } from '../subscribable'
-import { merge } from '../merge'
+import { lazyMerge, merge } from '../merge'
 import { instOf } from '../instanceof'
-import { isFn, isHTMLElement, isNumberLike, isReactElement } from '../checkers'
+import {
+  isFn,
+  isHTMLElement,
+  isNumberLike,
+  isReactElement,
+  isMap,
+  isWeakMap,
+  isWeakSet,
+  isSet,
+} from '../checkers'
 import { defaults } from '../defaults'
+import { applyMiddleware } from '../middleware'
+
+const sleep = (d = 100) => new Promise((resolve) => setTimeout(resolve, d))
 
 describe('array', () => {
   test('toArr', () => {
@@ -131,7 +144,7 @@ describe('array', () => {
     ).toBeTruthy()
     expect(
       isEqual(
-        map(obj, (item, key) => `${item}-copy`),
+        map(obj, (item) => `${item}-copy`),
         { k1: 'v1-copy', k2: 'v2-copy' }
       )
     ).toBeTruthy()
@@ -301,6 +314,9 @@ describe('clone and compare', () => {
           $$typeof: true,
           _owner: true,
         },
+        dd: {
+          _isBigNumber: true,
+        },
       })
     ).toEqual({
       aa: {
@@ -312,6 +328,9 @@ describe('clone and compare', () => {
       cc: {
         $$typeof: true,
         _owner: true,
+      },
+      dd: {
+        _isBigNumber: true,
       },
     })
     expect(
@@ -346,6 +365,7 @@ describe('clone and compare', () => {
     expect(clone(set) === set).toBeTruthy()
     const date = new Date()
     expect(clone(date) === date).toBeTruthy()
+    // @ts-ignore
     const file = new File([''], 'filename')
     expect(clone(file) === file).toBeTruthy()
     const url = new URL('https://test.com')
@@ -360,13 +380,54 @@ describe('clone and compare', () => {
     expect(shallowClone({ aa: 123 })).toEqual({ aa: 123 })
     expect(shallowClone([123])).toEqual([123])
     expect(shallowClone(/\d+/)).toEqual(/\d+/)
+    expect(shallowClone({ _isAMomentObject: true })).toEqual({
+      _isAMomentObject: true,
+    })
+    expect(
+      shallowClone({
+        _isBigNumber: true,
+      })
+    ).toEqual({
+      _isBigNumber: true,
+    })
+    expect(
+      shallowClone({
+        _isJSONSchemaObject: true,
+      })
+    ).toEqual({
+      _isJSONSchemaObject: true,
+    })
+    expect(
+      shallowClone({
+        $$typeof: true,
+        _owner: true,
+      })
+    ).toEqual({
+      $$typeof: true,
+      _owner: true,
+    })
+    expect(
+      shallowClone({
+        toJS() {
+          return 123
+        },
+      }).toJS()
+    ).toEqual(123)
+    expect(
+      shallowClone({
+        toJSON() {
+          return 123
+        },
+      }).toJSON()
+    ).toEqual(123)
+    expect(shallowClone(1)).toEqual(1)
   })
 })
 
 describe('deprecate', () => {
   test('deprecate', () => {
     const test = jest.fn(() => {
-      console.log('### deprecated function called ###')
+      console.info('### deprecated function called ###')
     })
     const deprecatedFn = jest.fn(
       deprecate(test, 'Some.Deprecated.Api', 'some deprecated error')
@@ -416,13 +477,17 @@ describe('isEmpty', () => {
     // val - function
     const emptyFunc = function () {}
     const nonEmptyFunc = function (payload) {
-      console.log(payload)
+      console.info(payload)
     }
     expect(isEmpty(emptyFunc)).toBeTruthy()
     expect(isEmpty(nonEmptyFunc)).toBeFalsy()
 
     // val - arrays
     expect(isEmpty([])).toBeTruthy()
+    expect(isEmpty([0])).toBeTruthy()
+    expect(isEmpty([''])).toBeTruthy()
+    expect(isEmpty([''], true)).toBeFalsy()
+    expect(isEmpty([0], true)).toBeFalsy()
     expect(isEmpty([1, 2, 3, 4, 5])).toBeFalsy()
     expect(isEmpty([0, undefined, null, ''])).toBeTruthy()
 
@@ -431,9 +496,11 @@ describe('isEmpty', () => {
     expect(isEmpty(new Error('some error'))).toBeFalsy()
 
     // val - objects
-    expect(
-      isEmpty(new File(['foo'], 'filename.txt', { type: 'text/plain' }))
-    ).toBeFalsy()
+    // @ts-ignore
+    const file = new File(['foo'], 'filename.txt', { type: 'text/plain' })
+    // The toString and Object.prototype.toString of the File in the Jest environment are inconsistent
+    file.toString = Object.prototype.toString
+    expect(isEmpty(file)).toBeFalsy()
     expect(isEmpty(new Map())).toBeTruthy()
     expect(isEmpty(new Map().set('key', 'val'))).toBeFalsy()
     expect(isEmpty(new Set())).toBeTruthy()
@@ -441,7 +508,7 @@ describe('isEmpty', () => {
     expect(isEmpty({ key: 'val' })).toBeFalsy()
     expect(isEmpty({})).toBeTruthy()
 
-    expect(isEmpty(Symbol()))
+    expect(isEmpty(Symbol())).toBeFalsy()
   })
 })
 
@@ -486,7 +553,7 @@ describe('shared Subscribable', () => {
     // subscribable with custom notify
     const objWithCustomNotify = new Subscribable()
     const customNotify = jest.fn((payload) => {
-      console.log(payload)
+      console.info(payload)
       return false
     })
     objWithCustomNotify.subscription = {
@@ -495,6 +562,7 @@ describe('shared Subscribable', () => {
     objWithCustomNotify.subscribe(cb)
     objWithCustomNotify.notify({ key3: 'val3' })
     expect(customNotify).toBeCalledTimes(1)
+    objWithCustomNotify.unsubscribe()
   })
 })
 
@@ -520,7 +588,22 @@ describe('types', () => {
     expect(isReactElement({ $$typeof: true, _owner: true })).toBeTruthy()
   })
   test('isHTMLElement', () => {
+    // @ts-ignore
     expect(isHTMLElement(document.createElement('div'))).toBeTruthy()
+  })
+  test('isMap', () => {
+    expect(isMap(new Map())).toBeTruthy()
+  })
+  test('isSet', () => {
+    expect(isSet(new Set())).toBeTruthy()
+  })
+  test('isWeakMap', () => {
+    expect(isWeakMap(new WeakMap())).toBeTruthy()
+    expect(isWeakMap(new Map())).toBeFalsy()
+  })
+  test('isWeakSet', () => {
+    expect(isWeakSet(new WeakSet())).toBeTruthy()
+    expect(isWeakSet(new Set())).toBeFalsy()
   })
 })
 
@@ -569,6 +652,168 @@ describe('merge', () => {
         },
       },
     })
+    expect(
+      merge(
+        {
+          react: {
+            $$typeof: true,
+            _owner: true,
+            aa: 123,
+          },
+        },
+        {
+          react: {
+            $$typeof: true,
+            _owner: true,
+            bb: 321,
+          },
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      react: {
+        $$typeof: true,
+        _owner: true,
+        bb: 321,
+      },
+    })
+    expect(
+      merge(
+        {
+          react: {
+            _isAMomentObject: true,
+            aa: 123,
+          },
+        },
+        {
+          react: {
+            _isAMomentObject: true,
+            bb: 321,
+          },
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      react: {
+        _isAMomentObject: true,
+        bb: 321,
+      },
+    })
+    expect(
+      merge(
+        {
+          react: {
+            _isJSONSchemaObject: true,
+            aa: 123,
+          },
+        },
+        {
+          react: {
+            _isJSONSchemaObject: true,
+            bb: 321,
+          },
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      react: {
+        _isJSONSchemaObject: true,
+        bb: 321,
+      },
+    })
+    expect(
+      merge(
+        {
+          react: {
+            _isBigNumber: true,
+            c: [1, 234567890123],
+            e: 0,
+            s: 1,
+          },
+        },
+        {
+          react: {
+            _isBigNumber: true,
+            c: [2, 345678901234],
+            e: 1,
+            s: 0,
+          },
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      react: {
+        _isBigNumber: true,
+        c: [2, 345678901234],
+        e: 1,
+        s: 0,
+      },
+    })
+    const toJSObj = {
+      toJS: () => {},
+      bb: 321,
+    }
+    expect(
+      merge(
+        {
+          toJSObj: {
+            toJS: () => {},
+            aa: 123,
+          },
+        },
+        {
+          toJSObj,
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      toJSObj,
+    })
+    const toJSONObj = {
+      toJSON: () => {},
+      bb: 321,
+    }
+    expect(
+      merge(
+        {
+          toJSONObj: {
+            toJS: () => {},
+            aa: 123,
+          },
+        },
+        {
+          toJSONObj,
+        },
+        {
+          assign: true,
+        }
+      )
+    ).toEqual({
+      toJSONObj,
+    })
+  })
+
+  test('empty', () => {
+    expect(
+      merge(
+        {
+          aa: undefined,
+        },
+        {
+          aa: {},
+        }
+      )
+    ).toEqual({ aa: {} })
   })
 
   test('clone', () => {
@@ -633,9 +878,85 @@ describe('merge', () => {
       [symbol]: 123,
       aa: 321,
     })
+
+    const getOwnPropertySymbols = Object.getOwnPropertySymbols
+    Object.getOwnPropertySymbols = null
+    const mergedObject = merge({ [symbol]: 123 }, { aa: 321 })
+    Object.getOwnPropertySymbols = getOwnPropertySymbols
+
+    expect(mergedObject).toEqual({
+      aa: 321,
+    })
   })
   test('merge unmatch', () => {
     expect(merge({ aa: 123 }, [111])).toEqual([111])
+  })
+
+  test('lazy merge', () => {
+    const merge1 = lazyMerge<any>(1, 2)
+    expect(merge1).toBe(2)
+    const merge2 = lazyMerge<any>('123', '321')
+    expect(merge2).toBe('321')
+    const merge3 = lazyMerge<any>(1, undefined)
+    expect(merge3).toBe(1)
+    const merge4 = lazyMerge<any>('123', undefined)
+    expect(merge4).toBe('123')
+    const merge5 = lazyMerge<any>(undefined, '123')
+    expect(merge5).toBe('123')
+    const merge6 = lazyMerge([1, 2, 3], [3, 4])
+    expect(merge6[0]).toBe(3)
+    expect(merge6[1]).toBe(4)
+    expect(merge6[2]).toBe(3)
+    const merge7 = lazyMerge<any>(
+      {
+        get x() {
+          return 'x'
+        },
+      },
+      {
+        get y() {
+          return 'y'
+        },
+      }
+    )
+    expect(merge7.x).toBe('x')
+    expect(merge7.y).toBe('y')
+    const effects = {
+      a: 1,
+      b: 2,
+    }
+    const merge8 = lazyMerge<any>(
+      {
+        get x() {
+          return effects.a
+        },
+      },
+      {
+        get y() {
+          return effects.b
+        },
+      }
+    )
+    expect(merge8.x).toBe(1)
+    expect(merge8.y).toBe(2)
+    effects.a = 123
+    effects.b = 321
+    expect(merge8.x).toBe(123)
+    expect(merge8.y).toBe(321)
+    expect(Object.keys(merge8)).toEqual(['x', 'y'])
+    expect('x' in merge8).toBe(true)
+    expect('y' in merge8).toBe(true)
+    expect('z' in merge8).toBe(false)
+    const merge9Source = { a: 1 }
+    const merge9Target = { b: 2 }
+
+    const merge9 = lazyMerge<any>(merge9Target, merge9Source)
+
+    merge9.a = 2
+    merge9.b = 3
+    merge9.c = 4
+    expect(merge9Source).toEqual({ a: 2, c: 4 })
+    expect(merge9Target).toEqual({ b: 3 })
   })
 })
 
@@ -646,6 +967,7 @@ describe('globalThis', () => {
 describe('instanceof', () => {
   test('instOf', () => {
     expect(instOf(123, 123)).toBeFalsy()
+    expect(instOf('123', '123')).toBeFalsy()
   })
 })
 
@@ -671,6 +993,10 @@ test('defaults', () => {
         ee: {
           toJS,
         },
+        ff: {
+          _isBigNumber: true,
+          toJSON,
+        },
       },
       {
         aa: { value: 111 },
@@ -679,6 +1005,13 @@ test('defaults', () => {
         dd: { value: 444 },
         ee: { value: 555 },
         mm: { value: 123 },
+        ff: {
+          value: {
+            c: [1, 234567890123],
+            e: 0,
+            s: 1,
+          },
+        },
       }
     )
   ).toEqual({
@@ -688,5 +1021,80 @@ test('defaults', () => {
     dd: { value: 444 },
     ee: { value: 555 },
     mm: { value: 123 },
+    ff: {
+      value: {
+        c: [1, 234567890123],
+        e: 0,
+        s: 1,
+      },
+    },
   })
+
+  expect(defaults([1, 2, 3], [0, undefined])).toEqual([0, 2, 3])
+
+  const defaultDate = new RegExp('')
+  // @ts-ignore
+  defaultDate._name = 'name'
+  const date2 = new RegExp('')
+  expect(defaults(defaultDate, date2)._name).toEqual('name')
+})
+
+test('applyMiddleware', async () => {
+  expect(await applyMiddleware(0)).toEqual(0)
+  expect(
+    await applyMiddleware(0, [
+      (num: number, next) => next(num + 1),
+      (num: number, next) => next(num + 1),
+      (num: number, next) => next(num + 1),
+    ])
+  ).toEqual(3)
+  expect(
+    await applyMiddleware(0, [
+      (num: number, next) => next(),
+      (num: number, next) => next(num + 1),
+      (num: number, next) => next(num + 1),
+    ])
+  ).toEqual(2)
+  const resolved = jest.fn()
+  applyMiddleware(0, [
+    (num: number, next) => next(num + 1),
+    () => '123',
+    (num: number, next) => next(num + 1),
+  ]).then(resolved)
+  await sleep(16)
+  expect(resolved).toBeCalledTimes(0)
+})
+
+test('applyMiddleware with error', async () => {
+  try {
+    await applyMiddleware(0, [
+      () => {
+        throw 'this is error'
+      },
+    ])
+  } catch (e) {
+    expect(e).toEqual('this is error')
+  }
+})
+
+test('move', () => {
+  const array1 = [1]
+  move(array1, 1, 0)
+  expect(array1).toEqual([1])
+  move(array1, 0, 1)
+  expect(array1).toEqual([1])
+  move(array1, -1, 1)
+  expect(array1).toEqual([1])
+  move(array1, 0, 3)
+  expect(array1).toEqual([1])
+
+  const array2 = [0, 1, 2]
+  move(array2, 0, 2)
+  expect(array2).toEqual([1, 2, 0])
+  move(array2, 1, 1)
+  expect(array2).toEqual([1, 2, 0])
+
+  const array3 = [0, 1, 2, 3]
+  move(array3, 3, 1)
+  expect(array3).toEqual([0, 3, 1, 2])
 })

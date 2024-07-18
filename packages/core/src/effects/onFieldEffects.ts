@@ -8,24 +8,26 @@ import {
   DataField,
   IFieldState,
 } from '../types'
-import { createEffectHook, useEffectForm } from '../shared'
-import { onFormUnmount } from './onFormEffects'
+import { createEffectHook, useEffectForm } from '../shared/effective'
 
 function createFieldEffect<Result extends GeneralField = GeneralField>(
   type: LifeCycleTypes
 ) {
   return createEffectHook(
     type,
-    (field: Result, form: Form) => (
-      pattern: FormPathPattern,
-      callback: (field: Result, form: Form) => void
-    ) => {
-      if (FormPath.parse(pattern).matchAliasGroup(field.address, field.path)) {
-        batch(() => {
-          callback(field, form)
-        })
+    (field: Result, form: Form) =>
+      (
+        pattern: FormPathPattern,
+        callback: (field: Result, form: Form) => void
+      ) => {
+        if (
+          FormPath.parse(pattern).matchAliasGroup(field.address, field.path)
+        ) {
+          batch(() => {
+            callback(field, form)
+          })
+        }
       }
-    }
   )
 }
 const _onFieldInit = createFieldEffect(LifeCycleTypes.ON_FIELD_INIT)
@@ -46,11 +48,47 @@ export const onFieldValidateStart = createFieldEffect<DataField>(
 export const onFieldValidateEnd = createFieldEffect<DataField>(
   LifeCycleTypes.ON_FIELD_VALIDATE_END
 )
+export const onFieldValidating = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_VALIDATING
+)
 export const onFieldValidateFailed = createFieldEffect<DataField>(
   LifeCycleTypes.ON_FIELD_VALIDATE_FAILED
 )
 export const onFieldValidateSuccess = createFieldEffect<DataField>(
   LifeCycleTypes.ON_FIELD_VALIDATE_SUCCESS
+)
+export const onFieldSubmit = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT
+)
+export const onFieldSubmitStart = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_START
+)
+export const onFieldSubmitEnd = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_END
+)
+export const onFieldSubmitValidateStart = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_VALIDATE_START
+)
+export const onFieldSubmitValidateEnd = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_VALIDATE_END
+)
+export const onFieldSubmitSuccess = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_SUCCESS
+)
+export const onFieldSubmitFailed = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_FAILED
+)
+export const onFieldSubmitValidateSuccess = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_VALIDATE_SUCCESS
+)
+export const onFieldSubmitValidateFailed = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_SUBMIT_VALIDATE_FAILED
+)
+export const onFieldReset = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_RESET
+)
+export const onFieldLoading = createFieldEffect<DataField>(
+  LifeCycleTypes.ON_FIELD_LOADING
 )
 
 export function onFieldInit(
@@ -71,18 +109,12 @@ export function onFieldReact(
   pattern: FormPathPattern,
   callback?: (field: GeneralField, form: Form) => void
 ) {
-  const disposers = []
   onFieldInit(pattern, (field, form) => {
-    disposers.push(
+    field.disposers.push(
       autorun(() => {
         if (isFn(callback)) callback(field, form)
       })
     )
-  })
-  onFormUnmount(() => {
-    disposers.forEach((dispose) => {
-      dispose()
-    })
   })
 }
 export function onFieldChange(
@@ -105,26 +137,18 @@ export function onFieldChange(
   } else {
     watches = watches || ['value']
   }
-  const disposers = []
   onFieldInit(pattern, (field, form) => {
     if (isFn(callback)) callback(field, form)
-    disposers.push(
-      reaction(
-        () => {
-          return toArr(watches).map((key) => {
-            return field[key]
-          })
-        },
-        () => {
-          if (isFn(callback)) callback(field, form)
-        }
-      )
+    const dispose = reaction(
+      () => {
+        return toArr(watches).map((key) => {
+          return field[key]
+        })
+      },
+      () => {
+        if (isFn(callback)) callback(field, form)
+      }
     )
-  })
-
-  onFormUnmount(() => {
-    disposers.forEach((dispose) => {
-      dispose()
-    })
+    field.disposers.push(dispose)
   })
 }

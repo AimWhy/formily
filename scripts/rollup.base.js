@@ -3,11 +3,13 @@ import typescript from 'rollup-plugin-typescript2'
 import resolve from 'rollup-plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
 import externalGlobals from 'rollup-plugin-external-globals'
+import injectProcessEnv from 'rollup-plugin-inject-process-env'
+import dts from 'rollup-plugin-dts'
 import { terser } from 'rollup-plugin-terser'
 
 const presets = () => {
   const externals = {
-    antd: 'Antd',
+    antd: 'antd',
     vue: 'Vue',
     react: 'React',
     moment: 'moment',
@@ -15,6 +17,7 @@ const presets = () => {
     '@alifd/next': 'Next',
     'mobx-react-lite': 'mobxReactLite',
     'react-dom': 'ReactDOM',
+    'element-ui': 'Element',
     '@ant-design/icons': 'icons',
     '@vue/composition-api': 'VueCompositionAPI',
     '@formily/reactive-react': 'Formily.ReactiveReact',
@@ -26,10 +29,12 @@ const presets = () => {
     '@formily/core': 'Formily.Core',
     '@formily/json-schema': 'Formily.JSONSchema',
     '@formily/react': 'Formily.React',
+    '@formily/vue': 'Formily.Vue',
+    'vue-demi': 'VueDemi'
   }
   return [
     typescript({
-      tsconfig: './tsconfig.json',
+      tsconfig: './tsconfig.build.json',
       tsconfigOverride: {
         compilerOptions: {
           module: 'ESNext',
@@ -45,7 +50,29 @@ const presets = () => {
   ]
 }
 
+const createEnvPlugin = (env) => {
+  return injectProcessEnv(
+    {
+      NODE_ENV: env,
+    },
+    {
+      exclude: '**/*.{css,less,sass,scss}',
+      verbose: false,
+    }
+  )
+}
+
 const inputFilePath = path.join(process.cwd(), 'src/index.ts')
+
+const noUIDtsPackages = [
+  'formily.core',
+  'formily.validator',
+  'formily.shared',
+  'formily.path',
+  'formily.json-schema',
+  'formily.reactive',
+]
+
 export const removeImportStyleFromInputFilePlugin = () => ({
   name: 'remove-import-style-from-input-file',
   transform(code, id) {
@@ -58,23 +85,72 @@ export const removeImportStyleFromInputFilePlugin = () => ({
   },
 })
 
-export default (filename, targetName, ...plugins) => [
-  {
-    input: 'src/index.ts',
-    output: {
-      format: 'umd',
-      file: `dist/${filename}.umd.development.js`,
-      name: targetName,
+export default (filename, targetName, ...plugins) => {
+  const base = [
+    {
+      input: 'src/index.ts',
+      output: {
+        format: 'umd',
+        file: `dist/${filename}.umd.development.js`,
+        name: targetName,
+        sourcemap: true,
+        amd: {
+          id: filename,
+        },
+        globals: {
+          '@formily/json-schema': 'Formily.JSONSchema',
+        },
+      },
+      external: ['react', 'react-dom', 'react-is', '@formily/json-schema'],
+      plugins: [...presets(), ...plugins, createEnvPlugin('development')],
     },
-    plugins: [...presets(filename, targetName), ...plugins],
-  },
-  {
-    input: 'src/index.ts',
-    output: {
-      format: 'umd',
-      file: `dist/${filename}.umd.production.js`,
-      name: targetName,
+    {
+      input: 'src/index.ts',
+      output: {
+        format: 'umd',
+        file: `dist/${filename}.umd.production.js`,
+        name: targetName,
+        sourcemap: true,
+        amd: {
+          id: filename,
+        },
+        globals: {
+          '@formily/json-schema': 'Formily.JSONSchema',
+        },
+      },
+      external: ['react', 'react-dom', 'react-is', '@formily/json-schema'],
+      plugins: [
+        ...presets(),
+        terser(),
+        ...plugins,
+        createEnvPlugin('production'),
+      ],
     },
-    plugins: [...presets(filename, targetName), terser(), ...plugins],
-  },
-]
+  ]
+
+  if (noUIDtsPackages.includes(filename)) {
+    base.push({
+      input: 'esm/index.d.ts',
+      output: {
+        format: 'es',
+        file: `dist/${filename}.d.ts`,
+      },
+      plugins: [dts(), ...plugins],
+    })
+    base.push({
+      input: 'esm/index.d.ts',
+      output: {
+        format: 'es',
+        file: `dist/${filename}.all.d.ts`,
+      },
+      plugins: [
+        dts({
+          respectExternal: true,
+        }),
+        ...plugins,
+      ],
+    })
+  }
+
+  return base
+}

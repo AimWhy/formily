@@ -1,7 +1,9 @@
-import { observable, action, model } from '../'
+import { observable, action, model, define } from '../'
 import { autorun, reaction } from '../autorun'
 import { observe } from '../observe'
 import { isObservable } from '../externals'
+import { untracked } from '../untracked'
+import { getObservableMaker } from '../internals'
 
 test('observable annotation', () => {
   const obs = observable<any>({
@@ -17,6 +19,19 @@ test('observable annotation', () => {
   obs.aa.bb = 333
   expect(handler).toBeCalledTimes(2)
   expect(handler1).toBeCalledTimes(2)
+
+  const handler2 = jest.fn()
+  const handler3 = jest.fn()
+  const obsAnno = getObservableMaker(observable)({ value: obs })
+
+  observe(obsAnno, handler2)
+  reaction(() => {
+    handler3(obsAnno.aa)
+  })
+  obsAnno.aa = { bb: { cc: 123 } }
+  obsAnno.aa.bb = 333
+  expect(handler2).toBeCalledTimes(2)
+  expect(handler3).toBeCalledTimes(2)
 })
 
 test('shallow annotation', () => {
@@ -30,9 +45,9 @@ test('shallow annotation', () => {
     handler(obs.aa)
   })
   obs.aa = { bb: { cc: 123 } }
-  expect(isObservable(obs)).toBeTruthy()
-  expect(isObservable(obs.aa)).toBeFalsy()
-  expect(isObservable(obs.aa.bb)).toBeFalsy()
+  expect(isObservable(obs)).toBe(true)
+  expect(isObservable(obs.aa)).toBe(false)
+  expect(isObservable(obs.aa.bb)).toBe(false)
   obs.aa.bb = 333
   obs.cc = 444
   expect(handler).toBeCalledTimes(2)
@@ -47,10 +62,15 @@ test('box annotation', () => {
   reaction(() => {
     handler(obs.get())
   })
-  obs.set(333)
-  expect(handler).toBeCalledWith(123)
-  expect(handler).toBeCalledWith(123)
+  const boxValue = 333
+  obs.set(boxValue)
   expect(handler1).toBeCalledTimes(1)
+  expect(handler1.mock.calls[0][0]).toMatchObject({
+    value: boxValue,
+  })
+  expect(handler).toBeCalledTimes(2)
+  expect(handler.mock.calls[0][0]).toBe(123)
+  expect(handler.mock.calls[1][0]).toBe(boxValue)
 })
 
 test('ref annotation', () => {
@@ -62,14 +82,14 @@ test('ref annotation', () => {
     handler(obs.value)
   })
   obs.value = 333
-  expect(handler).toBeCalledWith(123)
-  expect(handler).toBeCalledWith(123)
+  expect(handler).nthCalledWith(1, 123)
+  expect(handler).nthCalledWith(2, 333)
   expect(handler1).toBeCalledTimes(1)
 })
 
 test('action annotation', () => {
   const obs = observable<any>({})
-  const setData = action(() => {
+  const setData = action.bound(() => {
     obs.aa = 123
     obs.bb = 321
   })
@@ -79,7 +99,7 @@ test('action annotation', () => {
   }, handler)
   setData()
   expect(handler).toBeCalledTimes(1)
-  expect(handler).toBeCalledWith([123, 321])
+  expect(handler).toBeCalledWith([123, 321], [undefined, undefined])
 })
 
 test('no action annotation', () => {
@@ -94,8 +114,8 @@ test('no action annotation', () => {
   }, handler)
   setData()
   expect(handler).toBeCalledTimes(2)
-  expect(handler).toBeCalledWith([123, undefined])
-  expect(handler).toBeCalledWith([123, 321])
+  expect(handler).nthCalledWith(1, [123, undefined], [undefined, undefined])
+  expect(handler).nthCalledWith(2, [123, 321], [123, undefined])
 })
 
 test('computed annotation', () => {
@@ -236,10 +256,107 @@ test('computed with computed array length', () => {
     handler(obs.isNotEmpty)
     handler2(obs.arr2)
   })
-  expect(handler).toBeCalledWith(false)
   expect(handler).toBeCalledTimes(1)
+  expect(handler).lastCalledWith(false)
+  expect(handler2).toBeCalledTimes(1)
+  expect(handler2.mock.calls[0][0]).toEqual([])
   obs.arr.push(1)
-  expect(handler).toBeCalledWith(true)
+  expect(handler).lastCalledWith(true)
+  expect(handler2.mock.calls[1][0]).toEqual([2])
   obs.arr = []
-  expect(handler).toBeCalledWith(false)
+  expect(handler).lastCalledWith(false)
+  expect(handler2.mock.calls[2][0]).toEqual([])
+})
+
+test('computed recollect dependencies', () => {
+  const computed = jest.fn()
+  const obs = model({
+    aa: 'aaa',
+    bb: 'bbb',
+    cc: 'ccc',
+    get compute() {
+      computed()
+      if (this.aa === 'aaa') {
+        return this.bb
+      }
+      return this.cc
+    },
+  })
+  const handler = jest.fn()
+  autorun(() => {
+    handler(obs.compute)
+  })
+  obs.aa = '111'
+  obs.bb = '222'
+  expect(computed).toBeCalledTimes(2)
+})
+
+test('computed no params', () => {
+  observable.computed(null)
+})
+
+test('computed object params', () => {
+  observable.computed({ get: () => {} })
+})
+
+test('computed no track get', () => {
+  const obs = observable({ aa: 123 })
+  const compu = observable.computed({ get: () => obs.aa })
+  untracked(() => {
+    expect(compu.value).toBe(123)
+  })
+})
+
+test('computed cache descriptor', () => {
+  class A {
+    _value = 0
+    constructor() {
+      define(this, {
+        _value: observable.ref,
+        value: observable.computed,
+      })
+    }
+
+    get value() {
+      return this._value
+    }
+  }
+  const obs1 = new A()
+  const obs2 = new A()
+  const handler1 = jest.fn()
+  const handler2 = jest.fn()
+  autorun(() => {
+    handler1(obs1.value)
+  })
+  autorun(() => {
+    handler2(obs2.value)
+  })
+  expect(handler1).toBeCalledTimes(1)
+  expect(handler2).toBeCalledTimes(1)
+  obs1._value = 123
+  obs2._value = 123
+  expect(handler1).toBeCalledTimes(2)
+  expect(handler2).toBeCalledTimes(2)
+})
+
+test('computed normal object', () => {
+  const obs = define(
+    {
+      _value: 0,
+      get value() {
+        return this._value
+      },
+    },
+    {
+      _value: observable.ref,
+      value: observable.computed,
+    }
+  )
+  const handler = jest.fn()
+  autorun(() => {
+    handler(obs.value)
+  })
+  expect(handler).toBeCalledTimes(1)
+  obs._value = 123
+  expect(handler).toBeCalledTimes(2)
 })

@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useRef } from 'react'
+import { ArrayField } from '@formily/core'
 import {
   useField,
   observer,
@@ -6,14 +7,25 @@ import {
   RecursionField,
 } from '@formily/react'
 import cls from 'classnames'
-import { SortableContainer, SortableElement } from 'react-sortable-hoc'
 import { ISchema } from '@formily/json-schema'
-import { usePrefixCls } from '../__builtins__'
-import { ArrayBase, ArrayBaseMixins } from '../array-base'
+import {
+  usePrefixCls,
+  SortableContainer,
+  SortableElement,
+} from '../__builtins__'
+import { ArrayBase, ArrayBaseMixins, IArrayBaseProps } from '../array-base'
 
-type ComposedArrayItems = React.FC<React.HTMLAttributes<HTMLDivElement>> &
+type ComposedArrayItems = React.FC<
+  React.PropsWithChildren<
+    React.HTMLAttributes<HTMLDivElement> & IArrayBaseProps
+  >
+> &
   ArrayBaseMixins & {
-    Item?: React.FC<React.HTMLAttributes<HTMLDivElement>>
+    Item?: React.FC<
+      React.HTMLAttributes<HTMLDivElement> & {
+        type?: 'card' | 'divide'
+      }
+    >
   }
 
 const SortableItem = SortableElement(
@@ -44,32 +56,40 @@ const isAdditionComponent = (schema: ISchema) => {
 
 const useAddition = () => {
   const schema = useFieldSchema()
-  return schema.reduceProperties((addition, schema) => {
+  return schema.reduceProperties((addition, schema, key) => {
     if (isAdditionComponent(schema)) {
-      return <RecursionField schema={schema} name="addition" />
+      return <RecursionField schema={schema} name={key} />
     }
     return addition
   }, null)
 }
 
 export const ArrayItems: ComposedArrayItems = observer((props) => {
-  const field = useField<Formily.Core.Models.ArrayField>()
+  const field = useField<ArrayField>()
   const prefixCls = usePrefixCls('formily-array-items')
+  const ref = useRef<HTMLDivElement>(null)
   const schema = useFieldSchema()
   const addition = useAddition()
   const dataSource = Array.isArray(field.value) ? field.value : []
+  const { onAdd, onCopy, onRemove, onMoveDown, onMoveUp } = props
   if (!schema) throw new Error('can not found schema object')
   return (
-    <ArrayBase>
+    <ArrayBase
+      onAdd={onAdd}
+      onCopy={onCopy}
+      onRemove={onRemove}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+    >
       <div
         {...props}
+        ref={ref}
         onChange={() => {}}
         className={cls(prefixCls, props.className)}
       >
         <SortableList
-          useDragHandle
-          lockAxis="y"
-          helperClass={`${prefixCls}-sort-helper`}
+          list={dataSource.slice()}
+          className={`${prefixCls}-sort-helper`}
           onSortEnd={({ oldIndex, newIndex }) => {
             field.move(oldIndex, newIndex)
           }}
@@ -79,8 +99,12 @@ export const ArrayItems: ComposedArrayItems = observer((props) => {
               ? schema.items[index] || schema.items[0]
               : schema.items
             return (
-              <ArrayBase.Item key={index} index={index}>
-                <SortableItem key={`item-${index}`} index={index}>
+              <ArrayBase.Item
+                key={index}
+                index={index}
+                record={() => field.value?.[index]}
+              >
+                <SortableItem key={`item-${index}`} lockAxis="y" index={index}>
                   <div className={`${prefixCls}-item-inner`}>
                     <RecursionField schema={items} name={index} />
                   </div>
@@ -103,7 +127,7 @@ ArrayItems.Item = (props) => {
     <div
       {...props}
       onChange={() => {}}
-      className={cls(`${prefixCls}-card`, props.className)}
+      className={cls(`${prefixCls}-${props.type || 'card'}`, props.className)}
     >
       {props.children}
     </div>

@@ -1,6 +1,6 @@
 import React, { Fragment, useMemo } from 'react'
 import { Collapse, Badge } from '@alifd/next'
-import { model } from '@formily/reactive'
+import { model, markRaw } from '@formily/reactive'
 import {
   CollapseProps,
   PanelProps as CollapsePanelProps,
@@ -33,8 +33,10 @@ export interface IFormCollapseProps extends CollapseProps {
   formCollapse?: IFormCollapse
 }
 
-type ComposedFormCollapse = React.FC<IFormCollapseProps> & {
-  CollapsePanel?: React.FC<CollapsePanelProps>
+type ComposedFormCollapse = React.FC<
+  React.PropsWithChildren<IFormCollapseProps>
+> & {
+  CollapsePanel?: React.FC<React.PropsWithChildren<CollapsePanelProps>>
   createFormCollapse?: (
     defaultActiveKeys?: CollapseProps['expandedKeys']
   ) => IFormCollapse
@@ -64,7 +66,7 @@ const usePanels = () => {
 
 const createFormCollapse = (defaultActiveKeys?: ActiveKeys) => {
   const formCollapse = model({
-    activeKeys: defaultActiveKeys || [],
+    activeKeys: defaultActiveKeys,
     setActiveKeys(keys: ActiveKeys) {
       formCollapse.activeKeys = keys
     },
@@ -99,7 +101,7 @@ const createFormCollapse = (defaultActiveKeys?: ActiveKeys) => {
       }
     },
   })
-  return formCollapse
+  return markRaw(formCollapse)
 }
 
 export const FormCollapse: ComposedFormCollapse = observer(
@@ -108,9 +110,17 @@ export const FormCollapse: ComposedFormCollapse = observer(
     const panels = usePanels()
     const prefixCls = usePrefixCls('formily-collapse', props)
     const _formCollapse = useMemo(() => {
-      return formCollapse ? formCollapse : createFormCollapse()
+      return formCollapse
+        ? formCollapse
+        : createFormCollapse(props.defaultExpandedKeys)
     }, [])
-    const expandedKeys = props.expandedKeys || _formCollapse?.activeKeys
+
+    const takeExpandedKeys = () => {
+      if (props.expandedKeys) return props.expandedKeys
+      if (_formCollapse?.activeKeys) return _formCollapse?.activeKeys
+      if (props.accordion) return panels[0]?.name
+      return panels.map((item) => item.name)
+    }
 
     const badgedHeader = (key: SchemaKey, props: any) => {
       const errors = field.form.queryFeedbacks({
@@ -130,10 +140,10 @@ export const FormCollapse: ComposedFormCollapse = observer(
       <Collapse
         {...props}
         className={cls(prefixCls, props.className)}
-        expandedKeys={expandedKeys as any}
+        expandedKeys={takeExpandedKeys() as any}
         onExpand={(keys) => {
           props?.onExpand?.(keys)
-          formCollapse?.setActiveKeys?.(keys)
+          _formCollapse?.setActiveKeys?.(keys)
         }}
       >
         {panels.map(({ props, schema, name }, index) => (
@@ -150,7 +160,9 @@ export const FormCollapse: ComposedFormCollapse = observer(
   }
 )
 
-const CollapsePanel: React.FC<CollapsePanelProps> = ({ children }) => {
+const CollapsePanel: React.FC<React.PropsWithChildren<CollapsePanelProps>> = ({
+  children,
+}) => {
   return <Fragment>{children}</Fragment>
 }
 

@@ -1,22 +1,14 @@
-import {
-  define,
-  observable,
-  batch,
-  toJS,
-  isObservable,
-  observe,
-  untracked,
-} from '@formily/reactive'
+import { define, observable, batch, action, observe } from '@formily/reactive'
 import {
   FormPath,
   FormPathPattern,
-  isFn,
   isValid,
   uid,
   globalThisPolyfill,
-  defaults,
-  clone,
+  merge,
   isPlainObj,
+  isArr,
+  isObj,
 } from '@formily/shared'
 import { Heart } from './Heart'
 import { Field } from './Field'
@@ -43,14 +35,22 @@ import {
   IFormMergeStrategy,
 } from '../types'
 import {
-  isVoidField,
-  runEffects,
-  modelStateGetter,
-  modelStateSetter,
-  createFieldStateSetter,
-  createFieldStateGetter,
-  applyValuesPatch,
-} from '../shared'
+  createStateGetter,
+  createStateSetter,
+  createBatchStateSetter,
+  createBatchStateGetter,
+  triggerFormInitialValuesChange,
+  triggerFormValuesChange,
+  batchValidate,
+  batchReset,
+  batchSubmit,
+  setValidating,
+  setSubmitting,
+  setLoading,
+  getValidFormValues,
+} from '../shared/internals'
+import { isVoidField } from '../shared/checkers'
+import { runEffects } from '../shared/effective'
 import { ArrayField } from './ArrayField'
 import { ObjectField } from './ObjectField'
 import { VoidField } from './VoidField'
@@ -59,14 +59,13 @@ import { Graph } from './Graph'
 
 const DEV_TOOLS_HOOK = '__FORMILY_DEV_TOOLS_HOOK__'
 
-const RESPONSE_REQUEST_DURATION = 100
-
 export class Form<ValueType extends object = any> {
   displayName = 'Form'
   id: string
   initialized: boolean
   validating: boolean
   submitting: boolean
+  loading: boolean
   modified: boolean
   pattern: FormPatternTypes
   display: FormDisplayTypes
@@ -79,14 +78,14 @@ export class Form<ValueType extends object = any> {
   graph: Graph
   fields: IFormFields = {}
   requests: IFormRequests = {}
-  indexes: Map<string, string> = new Map()
+  indexes: Record<string, string> = {}
   disposers: (() => void)[] = []
 
   constructor(props: IFormProps<ValueType>) {
     this.initialize(props)
-    this.makeInitialValues()
     this.makeObservable()
     this.makeReactive()
+    this.makeValues()
     this.onInit()
   }
 
@@ -96,6 +95,7 @@ export class Form<ValueType extends object = any> {
     this.initialized = false
     this.submitting = false
     this.validating = false
+    this.loading = false
     this.modified = false
     this.mounted = false
     this.unmounted = false
@@ -114,23 +114,19 @@ export class Form<ValueType extends object = any> {
     })
   }
 
-  protected makeInitialValues() {
-    this.values = isObservable(this.props.values)
-      ? this.props.values
-      : clone(this.props.values) || ({} as any)
-    this.initialValues = isObservable(this.props.initialValues)
-      ? this.props.initialValues
-      : clone(this.props.initialValues) || ({} as any)
-    applyValuesPatch(this, [], this.initialValues)
+  protected makeValues() {
+    this.values = getValidFormValues(this.props.values)
+    this.initialValues = getValidFormValues(this.props.initialValues)
   }
 
   protected makeObservable() {
-    if (this.props.controlled) return
     define(this, {
       fields: observable.shallow,
+      indexes: observable.shallow,
       initialized: observable.ref,
       validating: observable.ref,
       submitting: observable.ref,
+      loading: observable.ref,
       modified: observable.ref,
       pattern: observable.ref,
       display: observable.ref,
@@ -149,19 +145,20 @@ export class Form<ValueType extends object = any> {
       readOnly: observable.computed,
       readPretty: observable.computed,
       disabled: observable.computed,
-      setValues: batch,
-      setValuesIn: batch,
-      setInitialValues: batch,
-      setInitialValuesIn: batch,
-      setPattern: batch,
-      setDisplay: batch,
-      setState: batch,
-      deleteIntialValuesIn: batch,
-      deleteValuesIn: batch,
-      setSubmitting: batch,
-      setValidating: batch,
-      setFormGraph: batch,
-      clearFormGraph: batch,
+      setValues: action,
+      setValuesIn: action,
+      setInitialValues: action,
+      setInitialValuesIn: action,
+      setPattern: action,
+      setDisplay: action,
+      setState: action,
+      deleteInitialValuesIn: action,
+      deleteValuesIn: action,
+      setSubmitting: action,
+      setValidating: action,
+      reset: action,
+      submit: action,
+      validate: action,
       onMount: batch,
       onUnmount: batch,
       onInit: batch,
@@ -169,17 +166,15 @@ export class Form<ValueType extends object = any> {
   }
 
   protected makeReactive() {
-    if (this.props.controlled) return
     this.disposers.push(
-      observe(this.initialValues, (change) => {
-        if (change.type === 'add' || change.type === 'set') {
-          applyValuesPatch(this, change.path.slice(1), change.value)
-        }
-        this.notify(LifeCycleTypes.ON_FORM_INITIAL_VALUES_CHANGE)
-      }),
-      observe(this.values, () => {
-        this.notify(LifeCycleTypes.ON_FORM_VALUES_CHANGE)
-      })
+      observe(
+        this,
+        (change) => {
+          triggerFormInitialValuesChange(this, change)
+          triggerFormValuesChange(this, change)
+        },
+        true
+      )
     )
   }
 
@@ -298,22 +293,17 @@ export class Form<ValueType extends object = any> {
     Component extends JSXComponent
   >(
     props: IFieldFactoryProps<Decorator, Component>
-  ) => {
+  ): Field<Decorator, Component> => {
     const address = FormPath.parse(props.basePath).concat(props.name)
     const identifier = address.toString()
     if (!identifier) return
-    if (!this.fields[identifier] || this.props.controlled) {
+    if (!this.fields[identifier] || this.props.designable) {
       batch(() => {
-        this.fields[identifier] = new Field(
-          address,
-          props,
-          this,
-          this.props.controlled
-        )
+        new Field(address, props, this, this.props.designable)
       })
       this.notify(LifeCycleTypes.ON_FORM_GRAPH_CHANGE)
     }
-    return this.fields[identifier] as Field<Decorator, Component>
+    return this.fields[identifier] as any
   }
 
   createArrayField = <
@@ -321,22 +311,25 @@ export class Form<ValueType extends object = any> {
     Component extends JSXComponent
   >(
     props: IFieldFactoryProps<Decorator, Component>
-  ) => {
+  ): ArrayField<Decorator, Component> => {
     const address = FormPath.parse(props.basePath).concat(props.name)
     const identifier = address.toString()
     if (!identifier) return
-    if (!this.fields[identifier] || this.props.controlled) {
+    if (!this.fields[identifier] || this.props.designable) {
       batch(() => {
-        this.fields[identifier] = new ArrayField(
+        new ArrayField(
           address,
-          props,
+          {
+            ...props,
+            value: isArr(props.value) ? props.value : [],
+          },
           this,
-          this.props.controlled
+          this.props.designable
         )
       })
       this.notify(LifeCycleTypes.ON_FORM_GRAPH_CHANGE)
     }
-    return this.fields[identifier] as ArrayField<Decorator, Component>
+    return this.fields[identifier] as any
   }
 
   createObjectField = <
@@ -344,22 +337,25 @@ export class Form<ValueType extends object = any> {
     Component extends JSXComponent
   >(
     props: IFieldFactoryProps<Decorator, Component>
-  ) => {
+  ): ObjectField<Decorator, Component> => {
     const address = FormPath.parse(props.basePath).concat(props.name)
     const identifier = address.toString()
     if (!identifier) return
-    if (!this.fields[identifier] || this.props.controlled) {
+    if (!this.fields[identifier] || this.props.designable) {
       batch(() => {
-        this.fields[identifier] = new ObjectField(
+        new ObjectField(
           address,
-          props,
+          {
+            ...props,
+            value: isObj(props.value) ? props.value : {},
+          },
           this,
-          this.props.controlled
+          this.props.designable
         )
       })
       this.notify(LifeCycleTypes.ON_FORM_GRAPH_CHANGE)
     }
-    return this.fields[identifier] as ObjectField<Decorator, Component>
+    return this.fields[identifier] as any
   }
 
   createVoidField = <
@@ -367,37 +363,34 @@ export class Form<ValueType extends object = any> {
     Component extends JSXComponent
   >(
     props: IVoidFieldFactoryProps<Decorator, Component>
-  ) => {
+  ): VoidField<Decorator, Component> => {
     const address = FormPath.parse(props.basePath).concat(props.name)
     const identifier = address.toString()
     if (!identifier) return
-    if (!this.fields[identifier] || this.props.controlled) {
+    if (!this.fields[identifier] || this.props.designable) {
       batch(() => {
-        this.fields[identifier] = new VoidField(
-          address,
-          props,
-          this,
-          this.props.controlled
-        )
+        new VoidField(address, props, this, this.props.designable)
       })
       this.notify(LifeCycleTypes.ON_FORM_GRAPH_CHANGE)
     }
-    return this.fields[identifier] as VoidField<Decorator, Component>
+    return this.fields[identifier] as any
   }
 
   /** 状态操作模型 **/
 
   setValues = (values: any, strategy: IFormMergeStrategy = 'merge') => {
     if (!isPlainObj(values)) return
-    untracked(() => {
-      if (strategy === 'merge' || strategy === 'deepMerge') {
-        this.values = defaults(this.values, values)
-      } else if (strategy === 'shallowMerge') {
-        this.values = Object.assign(this.values, values)
-      } else {
-        this.values = values as any
-      }
-    })
+    if (strategy === 'merge' || strategy === 'deepMerge') {
+      merge(this.values, values, {
+        // never reach
+        arrayMerge: (target, source) => source,
+        assign: true,
+      })
+    } else if (strategy === 'shallowMerge') {
+      Object.assign(this.values, values)
+    } else {
+      this.values = values as any
+    }
   }
 
   setInitialValues = (
@@ -405,27 +398,25 @@ export class Form<ValueType extends object = any> {
     strategy: IFormMergeStrategy = 'merge'
   ) => {
     if (!isPlainObj(initialValues)) return
-    untracked(() => {
-      if (strategy === 'merge' || strategy === 'deepMerge') {
-        this.initialValues = defaults(this.initialValues, initialValues)
-      } else if (strategy === 'shallowMerge') {
-        this.initialValues = Object.assign(this.initialValues, initialValues)
-      } else {
-        this.initialValues = initialValues as any
-      }
-    })
+    if (strategy === 'merge' || strategy === 'deepMerge') {
+      merge(this.initialValues, initialValues, {
+        // never reach
+        arrayMerge: (target, source) => source,
+        assign: true,
+      })
+    } else if (strategy === 'shallowMerge') {
+      Object.assign(this.initialValues, initialValues)
+    } else {
+      this.initialValues = initialValues as any
+    }
   }
 
   setValuesIn = (pattern: FormPathPattern, value: any) => {
-    untracked(() => {
-      FormPath.setIn(this.values, pattern, value)
-    })
+    FormPath.setIn(this.values, pattern, value)
   }
 
   deleteValuesIn = (pattern: FormPathPattern) => {
-    untracked(() => {
-      FormPath.deleteIn(this.values, pattern)
-    })
+    FormPath.deleteIn(this.values, pattern)
   }
 
   existValuesIn = (pattern: FormPathPattern) => {
@@ -437,15 +428,11 @@ export class Form<ValueType extends object = any> {
   }
 
   setInitialValuesIn = (pattern: FormPathPattern, initialValue: any) => {
-    untracked(() => {
-      FormPath.setIn(this.initialValues, pattern, initialValue)
-    })
+    FormPath.setIn(this.initialValues, pattern, initialValue)
   }
 
-  deleteIntialValuesIn = (pattern: FormPathPattern) => {
-    untracked(() => {
-      FormPath.deleteIn(this.initialValues, pattern)
-    })
+  deleteInitialValuesIn = (pattern: FormPathPattern) => {
+    FormPath.deleteIn(this.initialValues, pattern)
   }
 
   existInitialValuesIn = (pattern: FormPathPattern) => {
@@ -456,40 +443,16 @@ export class Form<ValueType extends object = any> {
     return FormPath.getIn(this.initialValues, pattern)
   }
 
+  setLoading = (loading: boolean) => {
+    setLoading(this, loading)
+  }
+
   setSubmitting = (submitting: boolean) => {
-    clearTimeout(this.requests.submit)
-    if (submitting) {
-      this.requests.submit = setTimeout(() => {
-        batch(() => {
-          this.submitting = submitting
-          this.notify(LifeCycleTypes.ON_FORM_SUBMITTING)
-        })
-      }, RESPONSE_REQUEST_DURATION)
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_START)
-    } else {
-      if (this.submitting !== submitting) {
-        this.submitting = submitting
-      }
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_END)
-    }
+    setSubmitting(this, submitting)
   }
 
   setValidating = (validating: boolean) => {
-    clearTimeout(this.requests.validate)
-    if (validating) {
-      this.requests.validate = setTimeout(() => {
-        batch(() => {
-          this.validating = validating
-          this.notify(LifeCycleTypes.ON_FORM_VALIDATING)
-        })
-      }, RESPONSE_REQUEST_DURATION)
-      this.notify(LifeCycleTypes.ON_FORM_VALIDATE_START)
-    } else {
-      if (this.validating !== validating) {
-        this.validating = validating
-      }
-      this.notify(LifeCycleTypes.ON_FORM_VALIDATE_END)
-    }
+    setValidating(this, validating)
   }
 
   setDisplay = (display: FormDisplayTypes) => {
@@ -575,7 +538,7 @@ export class Form<ValueType extends object = any> {
   }
 
   notify = (type: string, payload?: any) => {
-    this.heart.publish(type, isValid(payload) ? payload : this)
+    this.heart.publish(type, payload ?? this)
   }
 
   subscribe = (subscriber?: HeartSubscriber) => {
@@ -596,33 +559,34 @@ export class Form<ValueType extends object = any> {
   onMount = () => {
     this.mounted = true
     this.notify(LifeCycleTypes.ON_FORM_MOUNT)
-    if (globalThisPolyfill[DEV_TOOLS_HOOK]) {
+    if (globalThisPolyfill[DEV_TOOLS_HOOK] && !this.props.designable) {
       globalThisPolyfill[DEV_TOOLS_HOOK].inject(this.id, this)
     }
   }
 
   onUnmount = () => {
-    this.query('*').forEach((field) => field.dispose())
-    this.unmounted = true
-    this.fields = {}
-    this.indexes.clear()
     this.notify(LifeCycleTypes.ON_FORM_UNMOUNT)
-    if (globalThisPolyfill[DEV_TOOLS_HOOK]) {
+    this.query('*').forEach((field) => field.destroy(false))
+    this.disposers.forEach((dispose) => dispose())
+    this.unmounted = true
+    this.indexes = {}
+    this.heart.clear()
+    if (globalThisPolyfill[DEV_TOOLS_HOOK] && !this.props.designable) {
       globalThisPolyfill[DEV_TOOLS_HOOK].unmount(this.id)
     }
   }
 
-  setState: IModelSetter<IFormState<ValueType>> = modelStateSetter(this)
+  setState: IModelSetter<IFormState<ValueType>> = createStateSetter(this)
 
-  getState: IModelGetter<IFormState<ValueType>> = modelStateGetter(this)
+  getState: IModelGetter<IFormState<ValueType>> = createStateGetter(this)
 
-  setFormState: IModelSetter<IFormState<ValueType>> = modelStateSetter(this)
+  setFormState: IModelSetter<IFormState<ValueType>> = createStateSetter(this)
 
-  getFormState: IModelGetter<IFormState<ValueType>> = modelStateGetter(this)
+  getFormState: IModelGetter<IFormState<ValueType>> = createStateGetter(this)
 
-  setFieldState: IFieldStateSetter = createFieldStateSetter(this)
+  setFieldState: IFieldStateSetter = createBatchStateSetter(this)
 
-  getFieldState: IFieldStateGetter = createFieldStateGetter(this)
+  getFieldState: IFieldStateGetter = createBatchStateGetter(this)
 
   getFormGraph = () => {
     return this.graph.getGraph()
@@ -632,72 +596,23 @@ export class Form<ValueType extends object = any> {
     this.graph.setGraph(graph)
   }
 
-  clearFormGraph = () => {
-    this.fields = {}
-  }
-
-  validate = async (pattern: FormPathPattern = '*') => {
-    this.setValidating(true)
-    const tasks = []
+  clearFormGraph = (pattern: FormPathPattern = '*', forceClear = true) => {
     this.query(pattern).forEach((field) => {
-      if (!isVoidField(field)) {
-        tasks.push(field.validate())
-      }
+      field.destroy(forceClear)
     })
-    await Promise.all(tasks)
-    this.setValidating(false)
-    if (this.invalid) {
-      this.notify(LifeCycleTypes.ON_FORM_VALIDATE_FAILED)
-      throw this.errors
-    }
-    this.notify(LifeCycleTypes.ON_FORM_VALIDATE_SUCCESS)
   }
 
-  submit = async <T>(
-    onSubmit?: (values: any) => Promise<T> | void
+  validate = (pattern: FormPathPattern = '*') => {
+    return batchValidate(this, pattern)
+  }
+
+  submit = <T>(
+    onSubmit?: (values: ValueType) => Promise<T> | void
   ): Promise<T> => {
-    this.setSubmitting(true)
-    try {
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_START)
-      await this.validate()
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_SUCCESS)
-    } catch (e) {
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_FAILED)
-    }
-    this.notify(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_END)
-    let results: any
-    try {
-      if (this.invalid) {
-        throw this.errors
-      }
-      if (isFn(onSubmit)) {
-        results = await onSubmit(toJS(this.values))
-      } else {
-        results = toJS(this.values)
-      }
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_SUCCESS)
-    } catch (e) {
-      this.setSubmitting(false)
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT_FAILED)
-      this.notify(LifeCycleTypes.ON_FORM_SUBMIT)
-      throw e
-    }
-    this.setSubmitting(false)
-    this.notify(LifeCycleTypes.ON_FORM_SUBMIT)
-    return results
+    return batchSubmit(this, onSubmit)
   }
 
-  reset = async (
-    pattern: FormPathPattern = '*',
-    options?: IFieldResetOptions
-  ) => {
-    const tasks = []
-    this.query(pattern).forEach((field) => {
-      if (!isVoidField(field)) {
-        tasks.push(field.reset(options))
-      }
-    })
-    this.notify(LifeCycleTypes.ON_FORM_RESET)
-    await Promise.all(tasks)
+  reset = (pattern: FormPathPattern = '*', options?: IFieldResetOptions) => {
+    return batchReset(this, pattern, options)
   }
 }

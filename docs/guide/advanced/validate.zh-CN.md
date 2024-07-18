@@ -7,9 +7,13 @@ Formily 的表单校验使用了极其强大且灵活的@formily/validator 校�
 
 同时我们还能在 effects 或者 x-reactions/reactions 中实现联动校验
 
-具体规则校验文档参考 [FieldValidator](https://core.formilyjs.org/api/models/field#fieldvalidator)
+具体规则校验文档参考 [FieldValidator](https://core.formilyjs.org/zh-CN/api/models/field#fieldvalidator)
+
+表单校验是表单中优化用户体验和保证数据准确性的重要一环，Formily 提供了多种校验方式，包括内置规则校验、内置格式校验、自定义规则校验等，下面我们将逐一介绍这些校验方式。
 
 ## 内置规则校验
+
+内置规则校验是指 Formily 提供的一些常用校验规则，比如必填、最大值、最小值、长度、枚举、常量、整除等，实现了最简单和最通用的校验，这些规则可以通过 JSON Schema 的属性描述，也可以通过 x-validator 属性描述。Formily 支持多种形式的内置规则书写方式，建议团队内部根据使用习惯制定团队规范。
 
 #### Markup Schema 案例
 
@@ -968,11 +972,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1069,7 +1073,7 @@ export default () => (
         title="局部定义风格"
         required
         x-validator={{
-          validator(value, rule) {
+          validator(value) {
             if (!value) return ''
             return value === '123'
           },
@@ -1082,7 +1086,7 @@ export default () => (
         name="validator_style_4"
         title="局部定义风格"
         required
-        x-validator={(value, rule) => {
+        x-validator={(value) => {
           if (!value) return ''
           if (value < 10) {
             return {
@@ -1136,11 +1140,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1293,11 +1297,11 @@ registerValidateRules({
     if (!value) return ''
     return value !== '123' ? rule.message : ''
   },
-  global_3(value, rule) {
+  global_3(value) {
     if (!value) return ''
     return value === '123'
   },
-  global_4(value, rule) {
+  global_4(value) {
     if (!value) return ''
     if (value < 10) {
       return {
@@ -1393,7 +1397,7 @@ export default () => (
       title="局部定义风格"
       required
       validator={{
-        validator(value, rule) {
+        validator(value) {
           if (!value) return ''
           return value === '123'
         },
@@ -1406,7 +1410,7 @@ export default () => (
       name="validator_style_4"
       title="局部定义风格"
       required
-      validator={(value, rule) => {
+      validator={(value) => {
         if (!value) return ''
         if (value < 10) {
           return {
@@ -1426,6 +1430,136 @@ export default () => (
         }
       }}
       component={[NumberPicker]}
+      decorator={[FormItem]}
+    />
+  </Form>
+)
+```
+
+## 使用第三方校验库
+
+凭借 Formily 极为强大的校验引擎，能够极为便捷地适配诸如 yup 等第三方校验库。其使用示例如下：
+
+#### JSON Schema 案例
+
+```tsx
+import React from 'react'
+import { createForm, registerValidateRules } from '@formily/core'
+import { createSchemaField } from '@formily/react'
+import { Form, FormItem, Input, NumberPicker } from '@formily/antd'
+import { string } from 'yup'
+
+const form = createForm()
+
+const SchemaField = createSchemaField({
+  components: {
+    Input,
+    FormItem,
+    NumberPicker,
+  },
+})
+
+registerValidateRules({
+  yup: async (value, rule) => {
+    try {
+      await rule.yup().validate(value)
+      return '' // 验证成功时返回空字符串
+    } catch (err) {
+      return err.errors.join(',') // 验证失败时返回错误信息
+    }
+  },
+})
+
+const schema = {
+  type: 'object',
+  properties: {
+    global_style_1: {
+      title: '最大长度为 2',
+      'x-validator': [
+        {
+          triggerType: 'onBlur',
+          yup: () => string().required('必填'),
+        },
+        {
+          triggerType: 'onBlur',
+          yup: () => string().max(2, '最大长度为 2'),
+        },
+      ],
+      'x-component': 'Input',
+      'x-decorator': 'FormItem',
+    },
+    global_style_2: {
+      title: 'email',
+      required: true,
+      'x-validator': {
+        triggerType: 'onBlur',
+        yup: () => string().email(),
+      },
+      'x-component': 'Input',
+      'x-decorator': 'FormItem',
+    },
+  },
+}
+
+export default () => (
+  <Form form={form} labelCol={6} wrapperCol={10}>
+    <SchemaField schema={schema} />
+  </Form>
+)
+```
+
+#### 纯 JSX 案例
+
+```tsx
+import React from 'react'
+import { createForm, registerValidateRules } from '@formily/core'
+import { Field } from '@formily/react'
+import { Form, FormItem, Input, NumberPicker } from '@formily/antd'
+import { string, number } from 'yup'
+
+const form = createForm()
+
+registerValidateRules({
+  yup: async (value, rule) => {
+    try {
+      await rule.yup().validate(value)
+      return '' // 验证成功时返回空字符串
+    } catch (err) {
+      return err.errors.join(',') // 验证失败时返回错误信息
+    }
+  },
+})
+
+export default () => (
+  <Form form={form} labelCol={6} wrapperCol={10}>
+    <Field
+      name="global_style_1"
+      title="email"
+      required
+      validator={{
+        yup: () => string().email(),
+      }}
+      component={[Input]}
+      decorator={[FormItem]}
+    />
+    <Field
+      name="global_style_2"
+      title="最大值 30"
+      required
+      validator={{
+        yup: () => number().max(30),
+      }}
+      component={[NumberPicker]}
+      decorator={[FormItem]}
+    />
+    <Field
+      name="global_style_3"
+      title="email"
+      required
+      validator={{
+        yup: () => string().email(),
+      }}
+      component={[Input]}
       decorator={[FormItem]}
     />
   </Form>
@@ -1955,7 +2089,7 @@ export default () => (
         title="AA"
         required
         x-reactions={(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('bb').value() >= field.value ? 'AA必须大于BB' : ''
         }}
         x-component="NumberPicker"
@@ -1966,7 +2100,7 @@ export default () => (
         title="BB"
         required
         x-reactions={(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('aa').value() <= field.value ? 'AA必须大于BB' : ''
         }}
         x-component="NumberPicker"
@@ -2001,7 +2135,7 @@ const schema = {
       title: 'AA',
       required: true,
       'x-reactions': `{{(field) => {
-          field.errors =
+          field.selfErrors =
             field.query('bb').value() >= field.value ? 'AA必须大于BB' : ''
       }}}`,
       'x-component': 'NumberPicker',
@@ -2014,7 +2148,7 @@ const schema = {
         dependencies: ['aa'],
         fulfill: {
           state: {
-            errors: "{{$deps[0] <= $self.value ? 'AA必须大于BB' : ''}}",
+            selfErrors: "{{$deps[0] <= $self.value ? 'AA必须大于BB' : ''}}",
           },
         },
       },
@@ -2048,7 +2182,7 @@ export default () => (
       title="AA"
       required
       reactions={(field) => {
-        field.errors =
+        field.selfErrors =
           field.query('bb').value() >= field.value ? 'AA必须大于BB' : ''
       }}
       component={[NumberPicker]}
@@ -2059,7 +2193,7 @@ export default () => (
       title="BB"
       required
       reactions={(field) => {
-        field.errors =
+        field.selfErrors =
           field.query('aa').value() <= field.value ? 'AA必须大于BB' : ''
       }}
       component={[NumberPicker]}
@@ -2071,7 +2205,7 @@ export default () => (
 
 ## 定制校验文案
 
-主要通过[registerValidateLocale](https://core.formilyjs.org/api/entry/form-validator-registry#registervalidatelocale)来定制内置校验文案
+主要通过[registerValidateLocale](https://core.formilyjs.org/zh-CN/api/entry/form-validator-registry#registervalidatelocale)来定制内置校验文案
 
 ```tsx
 import React from 'react'

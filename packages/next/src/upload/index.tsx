@@ -1,27 +1,37 @@
 import React, { useEffect } from 'react'
+import { Field } from '@formily/core'
 import { useField } from '@formily/react'
 import { reaction } from '@formily/reactive'
-import { Upload as NextUpload } from '@alifd/next'
-import { UploadProps, CardProps } from '@alifd/next/lib/upload'
+import { Upload as NextUpload, Button, Icon } from '@alifd/next'
+import {
+  UploadProps as NextUploadProps,
+  CardProps,
+} from '@alifd/next/lib/upload'
 import { isArr, toArr } from '@formily/shared'
 import { UPLOAD_PLACEHOLDER } from './placeholder'
 
-type FileList = Parameters<UploadProps['onChange']>[0]
-
-type ExtendUploadProps = UploadProps & { serviceErrorMessage?: string }
-
-type ExtendCardProps = CardProps & { serviceErrorMessage?: string }
-
-type ComposedUpload = React.FC<ExtendUploadProps> & {
-  Card?: React.FC<ExtendCardProps>
-  Dragger?: React.FC<ExtendUploadProps>
+type ExtendsUploadProps = NextUploadProps & {
+  textContent?: React.ReactNode
+  serviceErrorMessage?: string
 }
 
-type IUploadProps = {
+type FileList = Parameters<ExtendsUploadProps['onChange']>[0]
+
+type ComposedUpload = React.FC<React.PropsWithChildren<IUploadProps>> & {
+  Card?: React.FC<React.PropsWithChildren<ICardUploadProps>>
+  Dragger?: React.FC<React.PropsWithChildren<IUploadProps>>
+}
+
+type IExtendsUploadProps = {
+  value?: any[]
   serviceErrorMessage?: string
   onChange?: (...args: any) => void
   formatter?: (...args: any) => any
 }
+
+export type IUploadProps = ExtendsUploadProps & { serviceErrorMessage?: string }
+
+export type ICardUploadProps = CardProps & { serviceErrorMessage?: string }
 
 const testOpts = (
   ext: RegExp,
@@ -75,13 +85,13 @@ const getSuccess = (target: any) => {
 }
 
 const getErrorMessage = (target: any) => {
-  return target?.errorMessage ||
+  return (
+    target?.errorMessage ||
     target?.errMsg ||
     target?.errorMsg ||
     target?.message ||
-    typeof target?.error === 'string'
-    ? target.error
-    : ''
+    (typeof target?.error === 'string' ? target.error : '')
+  )
 }
 
 const getState = (target: any) => {
@@ -91,9 +101,10 @@ const getState = (target: any) => {
   return target?.state || target?.status
 }
 
-const normalizeFileList = (fileList: UploadProps['value']) => {
+const normalizeFileList = (fileList: IUploadProps['value']) => {
   if (fileList && fileList.length) {
-    return fileList.map(({ originFileObj, ...file }, index) => {
+    return fileList.map(({ ...file }, index) => {
+      delete file['originFileObj']
       return {
         ...file,
         uid: file.uid || index,
@@ -106,13 +117,13 @@ const normalizeFileList = (fileList: UploadProps['value']) => {
           }
         ),
       }
-    }) as any[]
+    })
   }
   return []
 }
 
 const useValidator = (validator: (value: any) => string) => {
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   useEffect(() => {
     const dispose = reaction(
       () => field.value,
@@ -146,7 +157,7 @@ const useUploadValidator = (serviceErrorMessage = 'Upload Service Error') => {
   })
 }
 
-function useUploadProps<T extends IUploadProps = ExtendUploadProps>({
+function useUploadProps<T extends IExtendsUploadProps = IUploadProps>({
   serviceErrorMessage,
   ...props
 }: T) {
@@ -165,13 +176,30 @@ function useUploadProps<T extends IUploadProps = ExtendUploadProps>({
   }
   return {
     ...props,
+    value: normalizeFileList(props.value),
     onChange,
     formatter,
   }
 }
 
+const getPlaceholder = (props: IUploadProps) => {
+  if (props.shape !== 'card') {
+    return (
+      <Button>
+        <Icon type="upload" />
+        {props.textContent}
+      </Button>
+    )
+  }
+  return <Icon type="upload" style={{ fontSize: 20 }} />
+}
+
 export const Upload: ComposedUpload = (props) => {
-  return <NextUpload listType="text" {...useUploadProps(props)} />
+  return (
+    <NextUpload listType="text" {...useUploadProps(props)}>
+      {props.children || getPlaceholder(props)}
+    </NextUpload>
+  )
 }
 
 Upload.Dragger = (props) => {

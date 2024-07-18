@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0-beta.56",
+  "version": "2.3.2",
   "npmClient": "yarn",
   "useWorkspaces": true,
   "npmClientArgs": [
@@ -9,7 +9,7 @@
     "version": {
       "forcePublish": true,
       "exact": true,
-      "message": "chore(versions): 😊 publish %s"
+      "message": "chore(release): 😊 publish %s"
     }
   }
 }

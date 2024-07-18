@@ -1,6 +1,7 @@
 import {
   FormPath,
   each,
+  lowerCase,
   globalThisPolyfill,
   merge as deepmerge,
   isFn,
@@ -19,33 +20,39 @@ const getIn = FormPath.getIn
 
 const self: any = globalThisPolyfill
 
+const defaultLanguage = 'en'
+
 const getBrowserlanguage = () => {
   /* istanbul ignore next */
   if (!self.navigator) {
-    return 'en'
+    return defaultLanguage
   }
-  return self.navigator.browserlanguage || self.navigator.language || 'en'
+  return (
+    self.navigator.browserlanguage || self.navigator.language || defaultLanguage
+  )
 }
 
 const registry = {
   locales: {
     messages: {},
-    langugage: getBrowserlanguage(),
+    language: getBrowserlanguage(),
   },
   formats: {},
   rules: {},
   template: null,
 }
 
-const getISOCode = (langugage: string) => {
-  let isoCode = registry.locales.langugage
-  if (registry.locales.messages[langugage]) {
-    return langugage
+const getISOCode = (language: string) => {
+  let isoCode = registry.locales.language
+  if (registry.locales.messages[language]) {
+    return language
   }
+  const lang = lowerCase(language)
   each(
     registry.locales.messages,
     (messages: IRegistryLocaleMessages, key: string) => {
-      if (key.indexOf(langugage) > -1 || String(langugage).indexOf(key) > -1) {
+      const target = lowerCase(key)
+      if (target.indexOf(lang) > -1 || lang.indexOf(target) > -1) {
         isoCode = key
         return false
       }
@@ -54,18 +61,26 @@ const getISOCode = (langugage: string) => {
   return isoCode
 }
 
+export const getValidateLocaleIOSCode = getISOCode
+
 export const setValidateLanguage = (lang: string) => {
-  registry.locales.langugage = lang
+  registry.locales.language = lang || defaultLanguage
 }
 
-export const getValidateLanguage = () => registry.locales.langugage
+export const getValidateLanguage = () => registry.locales.language
+
+export const getLocaleByPath = (
+  path: string,
+  lang: string = registry.locales.language
+) => getIn(registry.locales.messages, `${getISOCode(lang)}.${path}`)
 
 export const getValidateLocale = (path: string) => {
-  const message = getIn(
-    registry.locales.messages,
-    `${getISOCode(registry.locales.langugage)}.${path}`
+  const message = getLocaleByPath(path)
+  return (
+    message ||
+    getLocaleByPath('pattern') ||
+    getLocaleByPath('pattern', defaultLanguage)
   )
-  return message || getValidateLocale('pattern')
 }
 
 export const getValidateMessageTemplateEngine = () => registry.template
@@ -100,7 +115,7 @@ export const registerValidateFormats = (formats: IRegistryFormats) => {
   })
 }
 
-export const registerValidateMessageTemplateEnigne = (
+export const registerValidateMessageTemplateEngine = (
   template: (message: ValidatorFunctionResponse, context: any) => any
 ) => {
   registry.template = template

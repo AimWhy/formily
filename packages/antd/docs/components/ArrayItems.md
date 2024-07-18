@@ -1,10 +1,10 @@
 # ArrayItems
 
-> 自增列表，对于简单的自增编辑场景比较适合，或者对于空间要求高的场景比较适合
+> Self-increment list, suitable for simple self-increment editing scenes, or for scenes with high space requirements
 >
-> 注意：该组件只适用于 Schema 场景
+> Note: This component is only applicable to Schema scenarios
 
-## Markup Schema 案例
+## Markup Schema example
 
 ```tsx
 import React from 'react'
@@ -42,7 +42,7 @@ export default () => {
       <SchemaField>
         <SchemaField.Array
           name="string_array"
-          title="字符串数组"
+          title="string array"
           x-decorator="FormItem"
           x-component="ArrayItems"
         >
@@ -61,15 +61,19 @@ export default () => {
               x-decorator="FormItem"
               x-component="ArrayItems.Remove"
             />
+            <SchemaField.Void
+              x-decorator="FormItem"
+              x-component="ArrayItems.Copy"
+            />
           </SchemaField.Void>
           <SchemaField.Void
             x-component="ArrayItems.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
         <SchemaField.Array
           name="array"
-          title="对象数组"
+          title="Object array"
           x-decorator="FormItem"
           x-component="ArrayItems"
         >
@@ -82,7 +86,7 @@ export default () => {
               <SchemaField.String
                 x-decorator="FormItem"
                 required
-                title="日期"
+                title="date"
                 name="date"
                 x-component="DatePicker.RangePicker"
                 x-component-props={{
@@ -94,18 +98,18 @@ export default () => {
               <SchemaField.String
                 x-decorator="FormItem"
                 required
-                title="输入框"
+                title="input box"
                 name="input"
                 x-component="Input"
               />
               <SchemaField.String
                 x-decorator="FormItem"
                 required
-                title="选择框"
+                title="select box"
                 name="select"
                 enum={[
-                  { label: '选项1', value: 1 },
-                  { label: '选项2', value: 2 },
+                  { label: 'Option 1', value: 1 },
+                  { label: 'Option 2', value: 2 },
                 ]}
                 x-component="Select"
                 x-component-props={{
@@ -122,12 +126,12 @@ export default () => {
           </SchemaField.Object>
           <SchemaField.Void
             x-component="ArrayItems.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
         <SchemaField.Array
           name="array2"
-          title="对象数组"
+          title="Object array"
           x-decorator="FormItem"
           x-component="ArrayItems"
           x-component-props={{ style: { width: 300 } }}
@@ -139,7 +143,7 @@ export default () => {
             />
             <SchemaField.String
               x-decorator="Editable"
-              title="输入框"
+              title="input box"
               name="input"
               x-component="Input"
               x-component-props={{ bordered: false }}
@@ -148,7 +152,7 @@ export default () => {
               name="config"
               x-component="Editable.Popover"
               required
-              title="配置复杂数据"
+              title="Configure complex data"
               x-reactions={(field) => {
                 field.title = field.value?.input || field.title
               }}
@@ -156,7 +160,7 @@ export default () => {
               <SchemaField.String
                 x-decorator="FormItem"
                 required
-                title="日期"
+                title="date"
                 name="date"
                 x-component="DatePicker.RangePicker"
                 x-component-props={{ style: { width: '100%' } }}
@@ -164,7 +168,7 @@ export default () => {
               <SchemaField.String
                 x-decorator="FormItem"
                 required
-                title="输入框"
+                title="input box"
                 name="input"
                 x-component="Input"
               />
@@ -176,19 +180,19 @@ export default () => {
           </SchemaField.Object>
           <SchemaField.Void
             x-component="ArrayItems.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
       </SchemaField>
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## JSON Schema 案例
+## JSON Schema case
 
 ```tsx
 import React from 'react'
@@ -229,7 +233,7 @@ const schema = {
       type: 'array',
       'x-component': 'ArrayItems',
       'x-decorator': 'FormItem',
-      title: '字符串数组',
+      title: 'String array',
       items: {
         type: 'void',
         'x-component': 'Space',
@@ -254,7 +258,7 @@ const schema = {
       properties: {
         add: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayItems.Addition',
         },
       },
@@ -263,7 +267,7 @@ const schema = {
       type: 'array',
       'x-component': 'ArrayItems',
       'x-decorator': 'FormItem',
-      title: '对象数组',
+      title: 'Object array',
       items: {
         type: 'object',
         properties: {
@@ -278,7 +282,7 @@ const schema = {
               },
               date: {
                 type: 'string',
-                title: '日期',
+                title: 'Date',
                 'x-decorator': 'FormItem',
                 'x-component': 'DatePicker.RangePicker',
                 'x-component-props': {
@@ -289,16 +293,16 @@ const schema = {
               },
               input: {
                 type: 'string',
-                title: '输入框',
+                title: 'input box',
                 'x-decorator': 'FormItem',
                 'x-component': 'Input',
               },
               select: {
                 type: 'string',
-                title: '下拉框',
+                title: 'drop-down box',
                 enum: [
-                  { label: '选项1', value: 1 },
-                  { label: '选项2', value: 2 },
+                  { label: 'Option 1', value: 1 },
+                  { label: 'Option 2', value: 2 },
                 ],
                 'x-decorator': 'FormItem',
                 'x-component': 'Select',
@@ -320,7 +324,7 @@ const schema = {
       properties: {
         add: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayItems.Addition',
         },
       },
@@ -330,7 +334,7 @@ const schema = {
       'x-component': 'ArrayItems',
       'x-decorator': 'FormItem',
       'x-component-props': { style: { width: 300 } },
-      title: '对象数组',
+      title: 'Object array',
       items: {
         type: 'object',
         'x-decorator': 'ArrayItems.Item',
@@ -343,7 +347,7 @@ const schema = {
 
           input: {
             type: 'string',
-            title: '输入框',
+            title: 'input box',
             'x-decorator': 'Editable',
             'x-component': 'Input',
             'x-component-props': {
@@ -352,14 +356,14 @@ const schema = {
           },
           config: {
             type: 'object',
-            title: '配置复杂数据',
+            title: 'Configure complex data',
             'x-component': 'Editable.Popover',
             'x-reactions':
               '{{(field)=>field.title = field.value && field.value.input || field.title}}',
             properties: {
               date: {
                 type: 'string',
-                title: '日期',
+                title: 'Date',
                 'x-decorator': 'FormItem',
                 'x-component': 'DatePicker.RangePicker',
                 'x-component-props': {
@@ -370,16 +374,16 @@ const schema = {
               },
               input: {
                 type: 'string',
-                title: '输入框',
+                title: 'input box',
                 'x-decorator': 'FormItem',
                 'x-component': 'Input',
               },
               select: {
                 type: 'string',
-                title: '下拉框',
+                title: 'drop-down box',
                 enum: [
-                  { label: '选项1', value: 1 },
-                  { label: '选项2', value: 2 },
+                  { label: 'Option 1', value: 1 },
+                  { label: 'Option 2', value: 2 },
                 ],
                 'x-decorator': 'FormItem',
                 'x-component': 'Select',
@@ -401,7 +405,7 @@ const schema = {
       properties: {
         add: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayItems.Addition',
         },
       },
@@ -414,14 +418,14 @@ export default () => {
     <FormProvider form={form}>
       <SchemaField schema={schema} />
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## Effects 联动案例
+## Effects linkage case
 
 ```tsx
 import React from 'react'
@@ -449,13 +453,13 @@ const SchemaField = createSchemaField({
 
 const form = createForm({
   effects: () => {
-    //主动联动模式
+    //Active linkage mode
     onFieldChange('array.*.aa', ['value'], (field, form) => {
       form.setFieldState(field.query('.bb'), (state) => {
         state.visible = field.value != '123'
       })
     })
-    //被动联动模式
+    //Passive linkage mode
     onFieldReact('array.*.dd', (field) => {
       field.visible = field.query('.cc').get('value') != '123'
     })
@@ -468,7 +472,7 @@ export default () => {
       <SchemaField>
         <SchemaField.Array
           name="array"
-          title="对象数组"
+          title="Object array"
           maxItems={3}
           x-decorator="FormItem"
           x-component="ArrayItems"
@@ -489,13 +493,16 @@ export default () => {
                 x-component="ArrayItems.Index"
               />
             </SchemaField.Void>
-            <SchemaField.Void x-component="Editable.Popover" title="配置数据">
+            <SchemaField.Void
+              x-component="Editable.Popover"
+              title="Configuration data"
+            >
               <SchemaField.String
                 name="aa"
                 x-decorator="FormItem"
                 title="AA"
                 required
-                description="AA输入123时隐藏BB"
+                description="AA hide BB when entering 123"
                 x-component="Input"
               />
               <SchemaField.String
@@ -510,7 +517,7 @@ export default () => {
                 x-decorator="FormItem"
                 title="CC"
                 required
-                description="CC输入123时隐藏DD"
+                description="Hide DD when CC enters 123"
                 x-component="Input"
               />
               <SchemaField.String
@@ -538,19 +545,19 @@ export default () => {
           </SchemaField.Object>
           <SchemaField.Void
             x-component="ArrayItems.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
       </SchemaField>
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## JSON Schema 联动案例
+## JSON Schema linkage case
 
 ```tsx
 import React from 'react'
@@ -586,7 +593,7 @@ const schema = {
       'x-component': 'ArrayItems',
       'x-decorator': 'FormItem',
       maxItems: 3,
-      title: '对象数组',
+      title: 'Object array',
       'x-component-props': { style: { width: 300 } },
       items: {
         type: 'object',
@@ -611,7 +618,7 @@ const schema = {
           edit: {
             type: 'void',
             'x-component': 'Editable.Popover',
-            title: '配置数据',
+            title: 'Configuration data',
             properties: {
               aa: {
                 type: 'string',
@@ -619,7 +626,7 @@ const schema = {
                 title: 'AA',
                 required: true,
                 'x-component': 'Input',
-                description: '输入123',
+                description: 'Enter 123',
               },
               bb: {
                 type: 'string',
@@ -671,7 +678,7 @@ const schema = {
       properties: {
         addition: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayItems.Addition',
         },
       },
@@ -684,7 +691,7 @@ export default () => {
     <FormProvider form={form}>
       <SchemaField schema={schema} />
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
@@ -695,77 +702,123 @@ export default () => {
 
 ### ArrayItems
 
-继承 HTMLDivElement Props
+Extended attributes
+
+| Property name | Type                      | Description     | Default value |
+| ------------- | ------------------------- | --------------- | ------------- |
+| onAdd         | `(index: number) => void` | add method      |               |
+| onRemove      | `(index: number) => void` | remove method   |               |
+| onCopy        | `(index: number) => void` | copy method     |               |
+| onMoveUp      | `(index: number) => void` | moveUp method   |               |
+| onMoveDown    | `(index: number) => void` | moveDown method |               |
+
+Other Inherit HTMLDivElement Props
 
 ### ArrayItems.Item
 
-> 列表区块
+> List block
 
-继承 HTMLDivElement Props
+Inherit HTMLDivElement Props
+
+Extended attributes
+
+| Property name | Type                | Description           | Default value |
+| ------------- | ------------------- | --------------------- | ------------- |
+| type          | `'card' \|'divide'` | card or dividing line |               |
 
 ### ArrayItems.SortHandle
 
-> 拖拽手柄
+> Drag handle
 
-参考 https://ant.design/components/icon-cn/
+Reference https://ant.design/components/icon-cn/
 
 ### ArrayItems.Addition
 
-> 添加按钮
+> Add button
 
-扩展属性
+Extended attributes
 
-| 属性名 | 类型                  | 描述     | 默认值   |
-| ------ | --------------------- | -------- | -------- |
-| title  | ReactText             | 文案     |          |
-| method | `'push' \| 'unshift'` | 添加方式 | `'push'` |
+| Property name | Type                 | Description   | Default value |
+| ------------- | -------------------- | ------------- | ------------- |
+| title         | ReactText            | Copywriting   |               |
+| method        | `'push' \|'unshift'` | add method    | `'push'`      |
+| defaultValue  | `any`                | Default value |               |
 
-其余参考 https://ant.design/components/button-cn/
+Other references https://ant.design/components/button-cn/
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
+
+### ArrayItems.Copy
+
+> Copy button
+
+Extended attributes
+
+| Property name | Type                 | Description | Default value |
+| ------------- | -------------------- | ----------- | ------------- |
+| title         | ReactText            | Copywriting |               |
+| method        | `'push' \|'unshift'` | Copy method | `'push'`      |
+
+Other references https://ant.design/components/button-cn/
+
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
 ### ArrayItems.Remove
 
-> 删除按钮
+> Delete button
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-其余参考 https://ant.design/components/icon-cn/
+Other references https://ant.design/components/icon-cn/
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
 ### ArrayItems.MoveDown
 
-> 下移按钮
+> Move down button
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-其余参考 https://ant.design/components/icon-cn/
+Other references https://ant.design/components/icon-cn/
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
 ### ArrayItems.MoveUp
 
-> 上移按钮
+> Move up button
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-其余参考 https://ant.design/components/icon-cn/
+Other references https://ant.design/components/icon-cn/
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
 ### ArrayItems.Index
 
-> 索引渲染器
+> Index Renderer
 
-无属性
+No attributes
 
 ### ArrayItems.useIndex
 
-> 读取当前渲染行索引的 React Hook
+> Read the React Hook of the current rendering row index
+
+### ArrayItems.useRecord
+
+> Read the React Hook of the current rendering row

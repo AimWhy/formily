@@ -1,8 +1,14 @@
+import {
+  IGeneralFieldState,
+  GeneralField,
+  FormPathPattern,
+} from '@formily/core'
 export type SchemaEnum<Message> = Array<
   | string
   | number
-  | { label: Message; value: any; [key: string]: any }
-  | { key: any; title: Message; [key: string]: any }
+  | boolean
+  | { label?: Message; value?: any; [key: string]: any }
+  | { key?: any; title?: Message; [key: string]: any }
 >
 
 export type SchemaTypes =
@@ -57,22 +63,33 @@ export type SchemaEffectTypes =
 
 export type SchemaReaction<Field = any> =
   | {
-      dependencies?: string[] | Record<string, string>
+      dependencies?:
+        | Array<
+            | string
+            | {
+                name?: string
+                type?: string
+                source?: string
+                property?: string
+              }
+          >
+        | Record<string, string>
       when?: string | boolean
       target?: string
-      effects?: SchemaEffectTypes[]
+      effects?: (SchemaEffectTypes | (string & {}))[]
       fulfill?: {
-        state?: Stringify<Formily.Core.Types.IGeneralFieldState>
+        state?: Stringify<IGeneralFieldState>
         schema?: ISchema
         run?: string
       }
       otherwise?: {
-        state?: Stringify<Formily.Core.Types.IGeneralFieldState>
+        state?: Stringify<IGeneralFieldState>
         schema?: ISchema
         run?: string
       }
+      [key: string]: any
     }
-  | ((field: Field) => void)
+  | ((field: Field, scope: IScopeContext) => void)
 
 export type SchemaReactions<Field = any> =
   | SchemaReaction<Field>
@@ -111,25 +128,33 @@ export type SchemaItems<
 
 export type SchemaComponents = Record<string, any>
 
-export interface ISchemaFieldFactoryOptions<
-  Components extends SchemaComponents = any
-> {
-  components?: Components
-  scope?: any
-}
-
 export interface ISchemaFieldUpdateRequest {
-  state?: Stringify<Formily.Core.Types.IFieldState>
+  state?: Stringify<IGeneralFieldState>
   schema?: ISchema
   run?: string
 }
 
-export interface ISchemaTransformerOptions extends ISchemaFieldFactoryOptions {
-  required?: ISchema['required']
+export interface IScopeContext {
+  [key: string]: any
+}
+
+export interface IFieldStateSetterOptions {
+  field: GeneralField
+  target?: FormPathPattern
+  request: ISchemaFieldUpdateRequest
+  runner?: string
+  scope?: IScopeContext
+}
+
+export interface ISchemaTransformerOptions {
+  scope?: IScopeContext
 }
 
 export type Stringify<P extends { [key: string]: any }> = {
-  [key in keyof P]?: P[key] | string
+  /**
+   * Use `string & {}` instead of string to keep Literal Type for ISchema#component and ISchema#decorator
+   */
+  [key in keyof P]?: P[key] | (string & {})
 }
 
 export type ISchema<
@@ -168,7 +193,19 @@ export type ISchema<
   minProperties?: number
   required?: string[] | boolean | string
   format?: string
+  $ref?: string
+  $namespace?: string
   /** nested json schema spec **/
+  definitions?: SchemaProperties<
+    Decorator,
+    Component,
+    DecoratorProps,
+    ComponentProps,
+    Pattern,
+    Display,
+    Validator,
+    Message
+  >
   properties?: SchemaProperties<
     Decorator,
     Component,
@@ -220,6 +257,8 @@ export type ISchema<
     Message
   >
 
+  ['x-value']?: any
+
   //顺序描述
   ['x-index']?: number
   //交互模式
@@ -229,17 +268,19 @@ export type ISchema<
   //校验器
   ['x-validator']?: Validator
   //装饰器
-  ['x-decorator']?: Decorator | (string & {})
+  ['x-decorator']?: Decorator | (string & {}) | ((...args: any[]) => any)
   //装饰器属性
   ['x-decorator-props']?: DecoratorProps
   //组件
-  ['x-component']?: Component | (string & {})
+  ['x-component']?: Component | (string & {}) | ((...args: any[]) => any)
   //组件属性
   ['x-component-props']?: ComponentProps
   //组件响应器
   ['x-reactions']?: SchemaReactions<ReactionField>
   //内容
   ['x-content']?: any
+
+  ['x-data']?: any
 
   ['x-visible']?: boolean
 
@@ -252,4 +293,8 @@ export type ISchema<
   ['x-read-only']?: boolean
 
   ['x-read-pretty']?: boolean
+
+  ['x-compile-omitted']?: string[]
+
+  [key: `x-${string | number}` | symbol]: any
 }>

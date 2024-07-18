@@ -3,6 +3,8 @@ export type ValidatorFormats =
   | 'email'
   | 'ipv6'
   | 'ipv4'
+  | 'number'
+  | 'integer'
   | 'idcard'
   | 'qq'
   | 'phone'
@@ -36,7 +38,7 @@ export type ValidatorFunction<Context = any> = (
   value: any,
   rule: IValidatorRules<Context>,
   ctx: Context,
-  format: (name: string, scope: any) => string
+  render: (message: string, scope?: any) => string
 ) => ValidatorFunctionResponse | Promise<ValidatorFunctionResponse> | null
 
 export type ValidatorParsedFunction<Context = any> = (
@@ -58,6 +60,10 @@ export interface IValidatorRules<Context = any> {
   pattern?: RegExp | string
   max?: number
   maximum?: number
+  maxItems?: number
+  minItems?: number
+  maxLength?: number
+  minLength?: number
   exclusiveMaximum?: number
   exclusiveMinimum?: number
   minimum?: number
@@ -65,6 +71,11 @@ export interface IValidatorRules<Context = any> {
   len?: number
   whitespace?: boolean
   enum?: any[]
+  const?: any
+  multipleOf?: number
+  uniqueItems?: boolean
+  maxProperties?: number
+  minProperties?: number
   message?: string
   [key: string]: any
 }

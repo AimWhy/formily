@@ -1,10 +1,10 @@
 # ArrayCollapse
 
-> 折叠面板，对于每行字段数量较多，联动较多的场景比较适合使用 ArrayCollapse
+> Folding panel, it is more suitable to use ArrayCollapse for scenes with more fields in each row and more linkage
 >
-> 注意：该组件只适用于 Schema 场景
+> Note: This component is only applicable to Schema scenarios
 
-## Markup Schema 案例
+## Markup Schema example
 
 ```tsx
 import React from 'react'
@@ -17,6 +17,7 @@ import {
 } from '@formily/antd'
 import { createForm } from '@formily/core'
 import { FormProvider, createSchemaField } from '@formily/react'
+import { Button } from 'antd'
 
 const SchemaField = createSchemaField({
   components: {
@@ -37,11 +38,15 @@ export default () => {
           maxItems={3}
           x-decorator="FormItem"
           x-component="ArrayCollapse"
+          x-component-props={{
+            accordion: true,
+            defaultOpenPanelCount: 3,
+          }}
         >
-          <SchemaField.Object
+          <SchemaField.Void
             x-component="ArrayCollapse.CollapsePanel"
             x-component-props={{
-              header: '字符串数组',
+              header: 'String array',
             }}
           >
             <SchemaField.Void x-component="ArrayCollapse.Index" />
@@ -55,10 +60,10 @@ export default () => {
             <SchemaField.Void x-component="ArrayCollapse.Remove" />
             <SchemaField.Void x-component="ArrayCollapse.MoveUp" />
             <SchemaField.Void x-component="ArrayCollapse.MoveDown" />
-          </SchemaField.Object>
+          </SchemaField.Void>
           <SchemaField.Void
             x-component="ArrayCollapse.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
         <SchemaField.Array
@@ -70,7 +75,7 @@ export default () => {
           <SchemaField.Object
             x-component="ArrayCollapse.CollapsePanel"
             x-component-props={{
-              header: '对象数组',
+              header: 'Object array',
             }}
           >
             <SchemaField.Void x-component="ArrayCollapse.Index" />
@@ -87,19 +92,71 @@ export default () => {
           </SchemaField.Object>
           <SchemaField.Void
             x-component="ArrayCollapse.Addition"
-            title="添加条目"
+            title="Add entry"
+          />
+        </SchemaField.Array>
+        <SchemaField.Array
+          name="string_array_unshift"
+          maxItems={3}
+          x-decorator="FormItem"
+          x-component="ArrayCollapse"
+          x-component-props={{
+            defaultOpenPanelCount: 8,
+          }}
+        >
+          <SchemaField.Void
+            x-component="ArrayCollapse.CollapsePanel"
+            x-component-props={{
+              header: 'String array',
+            }}
+          >
+            <SchemaField.Void x-component="ArrayCollapse.Index" />
+            <SchemaField.String
+              name="input"
+              x-decorator="FormItem"
+              title="Input"
+              required
+              x-component="Input"
+            />
+            <SchemaField.Void x-component="ArrayCollapse.Remove" />
+            <SchemaField.Void x-component="ArrayCollapse.MoveUp" />
+            <SchemaField.Void x-component="ArrayCollapse.MoveDown" />
+          </SchemaField.Void>
+          <SchemaField.Void
+            x-component="ArrayCollapse.Addition"
+            title="Add entry (unshift)"
+            x-component-props={{
+              method: 'unshift',
+            }}
           />
         </SchemaField.Array>
       </SchemaField>
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Button
+          onClick={() => {
+            form.setInitialValues({
+              array: Array.from({ length: 10 }).map(() => ({
+                input: 'default value',
+              })),
+              string_array: Array.from({ length: 10 }).map(
+                () => 'default value'
+              ),
+              string_array_unshift: Array.from({ length: 10 }).map(
+                () => 'default value'
+              ),
+            })
+          }}
+        >
+          Load default data
+        </Button>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## JSON Schema 案例
+## JSON Schema case
 
 ```tsx
 import React from 'react'
@@ -132,10 +189,10 @@ const schema = {
       maxItems: 3,
       'x-decorator': 'FormItem',
       items: {
-        type: 'object',
+        type: 'void',
         'x-component': 'ArrayCollapse.CollapsePanel',
         'x-component-props': {
-          header: '字符串数组',
+          header: 'String array',
         },
         properties: {
           index: {
@@ -166,7 +223,7 @@ const schema = {
       properties: {
         addition: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayCollapse.Addition',
         },
       },
@@ -180,7 +237,7 @@ const schema = {
         type: 'object',
         'x-component': 'ArrayCollapse.CollapsePanel',
         'x-component-props': {
-          header: '对象数组',
+          header: 'Object array',
         },
         properties: {
           index: {
@@ -211,8 +268,56 @@ const schema = {
       properties: {
         addition: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayCollapse.Addition',
+        },
+      },
+    },
+    array_unshift: {
+      type: 'array',
+      'x-component': 'ArrayCollapse',
+      maxItems: 3,
+      'x-decorator': 'FormItem',
+      items: {
+        type: 'object',
+        'x-component': 'ArrayCollapse.CollapsePanel',
+        'x-component-props': {
+          header: 'Object array',
+        },
+        properties: {
+          index: {
+            type: 'void',
+            'x-component': 'ArrayCollapse.Index',
+          },
+          input: {
+            type: 'string',
+            'x-decorator': 'FormItem',
+            title: 'Input',
+            required: true,
+            'x-component': 'Input',
+          },
+          remove: {
+            type: 'void',
+            'x-component': 'ArrayCollapse.Remove',
+          },
+          moveUp: {
+            type: 'void',
+            'x-component': 'ArrayCollapse.MoveUp',
+          },
+          moveDown: {
+            type: 'void',
+            'x-component': 'ArrayCollapse.MoveDown',
+          },
+        },
+      },
+      properties: {
+        addition: {
+          type: 'void',
+          title: 'Add entry (unshift)',
+          'x-component': 'ArrayCollapse.Addition',
+          'x-component-props': {
+            method: 'unshift',
+          },
         },
       },
     },
@@ -224,14 +329,14 @@ export default () => {
     <FormProvider form={form}>
       <SchemaField schema={schema} />
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## Effects 联动案例
+## Effects linkage case
 
 ```tsx
 import React from 'react'
@@ -255,13 +360,13 @@ const SchemaField = createSchemaField({
 
 const form = createForm({
   effects: () => {
-    //主动联动模式
+    //Active linkage mode
     onFieldChange('array.*.aa', ['value'], (field, form) => {
       form.setFieldState(field.query('.bb'), (state) => {
         state.visible = field.value != '123'
       })
     })
-    //被动联动模式
+    //Passive linkage mode
     onFieldReact('array.*.dd', (field) => {
       field.visible = field.query('.cc').get('value') != '123'
     })
@@ -278,13 +383,13 @@ export default () => {
           x-component="ArrayCollapse"
           x-decorator="FormItem"
           x-component-props={{
-            title: '对象数组',
+            title: 'Object array',
           }}
         >
           <SchemaField.Object
             x-component="ArrayCollapse.CollapsePanel"
             x-component-props={{
-              header: '对象数组',
+              header: 'Object array',
             }}
           >
             <SchemaField.Void x-component="ArrayCollapse.Index" />
@@ -293,7 +398,7 @@ export default () => {
               x-decorator="FormItem"
               title="AA"
               required
-              description="AA输入123时隐藏BB"
+              description="AA hide BB when entering 123"
               x-component="Input"
             />
             <SchemaField.String
@@ -308,7 +413,7 @@ export default () => {
               x-decorator="FormItem"
               title="CC"
               required
-              description="CC输入123时隐藏DD"
+              description="Hide DD when CC enters 123"
               x-component="Input"
             />
             <SchemaField.String
@@ -324,19 +429,19 @@ export default () => {
           </SchemaField.Object>
           <SchemaField.Void
             x-component="ArrayCollapse.Addition"
-            title="添加条目"
+            title="Add entry"
           />
         </SchemaField.Array>
       </SchemaField>
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
 }
 ```
 
-## JSON Schema 联动案例
+## JSON Schema linkage case
 
 ```tsx
 import React from 'react'
@@ -367,12 +472,12 @@ const schema = {
       type: 'array',
       'x-component': 'ArrayCollapse',
       maxItems: 3,
-      title: '对象数组',
+      title: 'Object array',
       items: {
         type: 'object',
         'x-component': 'ArrayCollapse.CollapsePanel',
         'x-component-props': {
-          header: '对象数组',
+          header: 'Object array',
         },
         properties: {
           index: {
@@ -385,7 +490,7 @@ const schema = {
             title: 'AA',
             required: true,
             'x-component': 'Input',
-            description: '输入123',
+            description: 'Enter 123',
           },
           bb: {
             type: 'string',
@@ -429,7 +534,7 @@ const schema = {
       properties: {
         addition: {
           type: 'void',
-          title: '添加条目',
+          title: 'Add entry',
           'x-component': 'ArrayCollapse.Addition',
         },
       },
@@ -442,7 +547,7 @@ export default () => {
     <FormProvider form={form}>
       <SchemaField schema={schema} />
       <FormButtonGroup>
-        <Submit onSubmit={console.log}>提交</Submit>
+        <Submit onSubmit={console.log}>Submit</Submit>
       </FormButtonGroup>
     </FormProvider>
   )
@@ -451,67 +556,84 @@ export default () => {
 
 ## API
 
-### ArrayCards
+### ArrayCollapse
 
-参考 https://ant.design/components/card-cn/
+Reference https://ant.design/components/collapse-cn/
 
-### ArrayCards.Addition
+### ArrayCollapse.CollapsePanel
 
-> 添加按钮
+Reference https://ant.design/components/collapse-cn/
 
-扩展属性
+### ArrayCollapse.Addition
 
-| 属性名 | 类型                  | 描述     | 默认值   |
-| ------ | --------------------- | -------- | -------- |
-| title  | ReactText             | 文案     |          |
-| method | `'push' \| 'unshift'` | 添加方式 | `'push'` |
+> Add button
 
-其余参考 https://ant.design/components/button-cn/
+Extended attributes
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+| Property name | Type                 | Description   | Default value |
+| ------------- | -------------------- | ------------- | ------------- |
+| title         | ReactText            | Copywriting   |               |
+| method        | `'push' \|'unshift'` | add method    | `'push'`      |
+| defaultValue  | `any`                | Default value |               |
 
-### ArrayCards.Remove
+Other references https://ant.design/components/button-cn/
 
-> 删除按钮
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
-其余参考 https://ant.design/components/icon-cn/
+### ArrayCollapse.Remove
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+> Delete button
 
-### ArrayCards.MoveDown
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-> 下移按钮
+Other references https://ant.design/components/icon-cn/
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
 
-其余参考 https://ant.design/components/icon-cn/
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+### ArrayCollapse.MoveDown
 
-### ArrayCards.MoveUp
+> Move down button
 
-> 上移按钮
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-| 属性名 | 类型      | 描述 | 默认值 |
-| ------ | --------- | ---- | ------ |
-| title  | ReactText | 文案 |        |
+Other references https://ant.design/components/icon-cn/
 
-其余参考 https://ant.design/components/icon-cn/
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
 
-注意：title 属性可以接收 Field 模型中的 title 映射，也就是在 Field 上传 title 也是生效的
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
 
-### ArrayCards.Index
+### ArrayCollapse.MoveUp
 
-> 索引渲染器
+> Move up button
 
-无属性
+| Property name | Type      | Description | Default value |
+| ------------- | --------- | ----------- | ------------- |
+| title         | ReactText | Copywriting |               |
 
-### ArrayItems.useIndex
+Other references https://ant.design/components/icon-cn/
 
-> 读取当前渲染行索引的 React Hook
+Note: The title attribute can receive the title mapping in the Field model, that is, uploading the title in the Field is also effective
+
+Note: You can disable default behavior with `onClick={e => e.preventDefault()}` in props.
+
+### ArrayCollapse.Index
+
+> Index Renderer
+
+No attributes
+
+### ArrayCollapse.useIndex
+
+> Read the React Hook of the current rendering row index
+
+### ArrayCollapse.useRecord
+
+> Read the React Hook of the current rendering row

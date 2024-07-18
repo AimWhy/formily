@@ -245,6 +245,224 @@ export default () => {
 }
 ```
 
+## Schema fragment linkage (top level control)
+
+The most important thing for fragment linkage is to manually clean up the field model, otherwise the UI cannot be synchronized
+
+```tsx
+import React, { useMemo, useRef } from 'react'
+import { createForm } from '@formily/core'
+import { createSchemaField, observer } from '@formily/react'
+import { Form, FormItem, Input, Select } from '@formily/antd'
+
+const SchemaField = createSchemaField({
+  components: {
+    Input,
+    FormItem,
+    Select,
+  },
+})
+
+const DYNAMIC_INJECT_SCHEMA = {
+  type_1: {
+    type: 'void',
+    properties: {
+      aa: {
+        type: 'string',
+        title: 'AA',
+        'x-decorator': 'FormItem',
+        'x-component': 'Input',
+        'x-component-props': {
+          placeholder: 'Input',
+        },
+      },
+    },
+  },
+  type_2: {
+    type: 'void',
+    properties: {
+      aa: {
+        type: 'string',
+        title: 'AA',
+        'x-decorator': 'FormItem',
+        enum: [
+          {
+            label: '111',
+            value: '111',
+          },
+          { label: '222', value: '222' },
+        ],
+        'x-component': 'Select',
+        'x-component-props': {
+          placeholder: 'Select',
+        },
+      },
+      bb: {
+        type: 'string',
+        title: 'BB',
+        'x-decorator': 'FormItem',
+        'x-component': 'Input',
+      },
+    },
+  },
+}
+
+const App = observer(() => {
+  const oldTypeRef = useRef()
+  const form = useMemo(() => createForm(), [])
+  const currentType = form.values.type
+  const schema = {
+    type: 'object',
+    properties: {
+      type: {
+        type: 'string',
+        title: 'Type',
+        enum: [
+          { label: 'type 1', value: 'type_1' },
+          { label: 'type 2', value: 'type_2' },
+        ],
+        'x-decorator': 'FormItem',
+        'x-component': 'Select',
+      },
+      container: DYNAMIC_INJECT_SCHEMA[currentType],
+    },
+  }
+
+  if (oldTypeRef.current !== currentType) {
+    form.clearFormGraph('container.*') //Recycle field model
+  }
+
+  oldTypeRef.current = currentType
+
+  return (
+    <Form form={form} layout="vertical">
+      <SchemaField schema={schema} />
+    </Form>
+  )
+})
+
+export default App
+```
+
+## Schema fragment linkage (custom component)
+
+```tsx
+import React, { useMemo, useState, useEffect } from 'react'
+import { createForm } from '@formily/core'
+import {
+  createSchemaField,
+  RecursionField,
+  useForm,
+  useField,
+  observer,
+} from '@formily/react'
+import { Form, FormItem, Input, Select } from '@formily/antd'
+
+const Custom = observer(() => {
+  const field = useField()
+  const form = useForm()
+  const [schema, setSchema] = useState({})
+
+  useEffect(() => {
+    form.clearFormGraph(`${field.address}.*`) //Recycle field model
+    //Can be obtained asynchronously
+    setSchema(DYNAMIC_INJECT_SCHEMA[form.values.type])
+  }, [form.values.type])
+
+  return (
+    <RecursionField
+      basePath={field.address}
+      schema={schema}
+      onlyRenderProperties
+    />
+  )
+})
+
+const SchemaField = createSchemaField({
+  components: {
+    Input,
+    FormItem,
+    Select,
+    Custom,
+  },
+})
+
+const DYNAMIC_INJECT_SCHEMA = {
+  type_1: {
+    type: 'void',
+    properties: {
+      aa: {
+        type: 'string',
+        title: 'AA',
+        'x-decorator': 'FormItem',
+        'x-component': 'Input',
+        'x-component-props': {
+          placeholder: 'Input',
+        },
+      },
+    },
+  },
+  type_2: {
+    type: 'void',
+    properties: {
+      aa: {
+        type: 'string',
+        title: 'AA',
+        'x-decorator': 'FormItem',
+        enum: [
+          {
+            label: '111',
+            value: '111',
+          },
+          { label: '222', value: '222' },
+        ],
+        'x-component': 'Select',
+        'x-component-props': {
+          placeholder: 'Select',
+        },
+      },
+      bb: {
+        type: 'string',
+        title: 'BB',
+        'x-decorator': 'FormItem',
+        'x-component': 'Input',
+      },
+    },
+  },
+}
+
+const App = observer(() => {
+  const form = useMemo(() => createForm(), [])
+  const schema = {
+    type: 'object',
+    properties: {
+      type: {
+        type: 'string',
+        title: 'Type',
+        enum: [
+          { label: 'type 1', value: 'type_1' },
+          { label: 'type 2', value: 'type_2' },
+        ],
+        'x-decorator': 'FormItem',
+        'x-component': 'Select',
+      },
+      container: {
+        type: 'object',
+        'x-component': 'Custom',
+      },
+    },
+  }
+
+  return (
+    <Form form={form} layout="vertical">
+      <SchemaField schema={schema} />
+    </Form>
+  )
+})
+
+export default App
+```
+
 ## Field Level Control
 
 ### Best Practices

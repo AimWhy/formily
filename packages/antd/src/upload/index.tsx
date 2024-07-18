@@ -1,32 +1,37 @@
 import React, { useEffect } from 'react'
+import { Field } from '@formily/core'
 import { connect, mapProps, useField } from '@formily/react'
-import { Upload as AntdUpload } from 'antd'
+import { Upload as AntdUpload, Button } from 'antd'
 import {
   UploadChangeParam,
   UploadProps as AntdUploadProps,
   DraggerProps as AntdDraggerProps,
 } from 'antd/lib/upload'
+import { InboxOutlined, UploadOutlined } from '@ant-design/icons'
 import { reaction } from '@formily/reactive'
 import { UploadFile } from 'antd/lib/upload/interface'
 import { isArr, toArr } from '@formily/shared'
 import { UPLOAD_PLACEHOLDER } from './placeholder'
 import { usePrefixCls } from '../__builtins__'
 
-type UploadProps = Omit<AntdUploadProps, 'onChange'> & {
+export type IUploadProps = Omit<AntdUploadProps, 'onChange'> & {
+  textContent?: React.ReactNode
   onChange?: (fileList: UploadFile[]) => void
   serviceErrorMessage?: string
 }
 
-type DraggerProps = Omit<AntdDraggerProps, 'onChange'> & {
+export type IDraggerUploadProps = Omit<AntdDraggerProps, 'onChange'> & {
+  textContent?: React.ReactNode
   onChange?: (fileList: UploadFile[]) => void
   serviceErrorMessage?: string
 }
 
-type ComposedUpload = React.FC<UploadProps> & {
-  Dragger?: React.FC<DraggerProps>
+type ComposedUpload = React.FC<React.PropsWithChildren<IUploadProps>> & {
+  Dragger?: React.FC<React.PropsWithChildren<IDraggerUploadProps>>
 }
 
-type IUploadProps = {
+type IExtendsUploadProps = {
+  fileList?: any[]
   serviceErrorMessage?: string
   onChange?: (...args: any) => void
 }
@@ -72,13 +77,13 @@ const getThumbURL = (target: any) => {
 }
 
 const getErrorMessage = (target: any) => {
-  return target?.errorMessage ||
+  return (
+    target?.errorMessage ||
     target?.errMsg ||
     target?.errorMsg ||
     target?.message ||
-    typeof target?.error === 'string'
-    ? target.error
-    : ''
+    (typeof target?.error === 'string' ? target.error : '')
+  )
 }
 
 const getState = (target: any) => {
@@ -109,7 +114,7 @@ const normalizeFileList = (fileList: UploadFile[]) => {
 }
 
 const useValidator = (validator: (value: any) => string) => {
-  const field = useField<Formily.Core.Models.Field>()
+  const field = useField<Field>()
   useEffect(() => {
     const dispose = reaction(
       () => field.value,
@@ -143,7 +148,7 @@ const useUploadValidator = (serviceErrorMessage = 'Upload Service Error') => {
   })
 }
 
-function useUploadProps<T extends IUploadProps = UploadProps>({
+function useUploadProps<T extends IExtendsUploadProps = IUploadProps>({
   serviceErrorMessage,
   ...props
 }: T) {
@@ -153,13 +158,30 @@ function useUploadProps<T extends IUploadProps = UploadProps>({
   }
   return {
     ...props,
+    fileList: normalizeFileList(props.fileList),
     onChange,
   }
 }
 
+const getPlaceholder = (props: IUploadProps) => {
+  if (props.listType !== 'picture-card') {
+    return (
+      <Button>
+        <UploadOutlined />
+        {props.textContent}
+      </Button>
+    )
+  }
+  return <UploadOutlined style={{ fontSize: 20 }} />
+}
+
 export const Upload: ComposedUpload = connect(
-  (props: UploadProps) => {
-    return <AntdUpload {...useUploadProps(props)} />
+  (props: React.PropsWithChildren<IUploadProps>) => {
+    return (
+      <AntdUpload {...useUploadProps(props)}>
+        {props.children || getPlaceholder(props)}
+      </AntdUpload>
+    )
   },
   mapProps({
     value: 'fileList',
@@ -167,10 +189,21 @@ export const Upload: ComposedUpload = connect(
 )
 
 const Dragger = connect(
-  (props: DraggerProps) => {
+  (props: React.PropsWithChildren<IDraggerUploadProps>) => {
     return (
       <div className={usePrefixCls('upload-dragger')}>
-        <AntdUpload.Dragger {...useUploadProps(props)} />
+        <AntdUpload.Dragger {...useUploadProps(props)}>
+          {props.children || (
+            <React.Fragment>
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              {props.textContent && (
+                <p className="ant-upload-text">{props.textContent}</p>
+              )}
+            </React.Fragment>
+          )}
+        </AntdUpload.Dragger>
       </div>
     )
   },

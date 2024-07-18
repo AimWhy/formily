@@ -1,9 +1,9 @@
 @import '~@alifd/next/lib/core/index-noreset.scss';
+@import '~@alifd/next/lib/form/scss/variable.scss';
 
 $array-table-prefix-cls: '#{$css-prefix}formily-array-table';
 
 .#{$array-table-prefix-cls} {
-
   .#{$array-table-prefix-cls}-pagination {
     display: flex;
     justify-content: center;
@@ -13,6 +13,7 @@ $array-table-prefix-cls: '#{$css-prefix}formily-array-table';
       min-width: 60px;
       margin-right: 6px;
       width: auto !important;
+
       .#{$css-prefix}input {
         min-width: 60px;
       }
@@ -39,16 +40,43 @@ $array-table-prefix-cls: '#{$css-prefix}formily-array-table';
         position: relative;
 
         .#{$css-prefix}formily-item-help {
+          &.#{$css-prefix}formily-item-error-help {
+            color: $form-error-color;
+          }
+
+          &.#{$css-prefix}formily-item-warning-help {
+            color: $form-warning-color;
+          }
+
+          min-width: 30px;
           position: absolute;
           font-size: 12px;
           top: 100%;
-          background: #fff;
           width: 100%;
-          margin-top: 3px;
-          padding: 3px;
           z-index: 1;
           border-radius: 3px;
-          box-shadow: 0 0 10px #eee;
+          background-color: #fff;
+          border: 1px solid #eee;
+          padding: 6px 8px;
+          margin-top: 6px;
+          transform: translateY(0);
+          opacity: 1;
+          &:after {
+            content: ' ';
+            background-color: #fff;
+            position: absolute;
+            display: block;
+            width: 5px;
+            height: 5px;
+            pointer-events: none;
+            -webkit-transform: rotate(45deg);
+            top: -4px;
+            transform: rotate(45deg);
+            box-sizing: content-box !important;
+            border-left: 1px solid #eee;
+            border-top: 1px solid #eee;
+            z-index: -1;
+          }
         }
       }
     }

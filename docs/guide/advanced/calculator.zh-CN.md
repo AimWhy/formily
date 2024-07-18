@@ -18,7 +18,6 @@ import {
 } from '@formily/antd'
 import { createForm } from '@formily/core'
 import { createSchemaField } from '@formily/react'
-import 'antd/lib/alert/style'
 
 const SchemaField = createSchemaField({
   components: {
@@ -140,7 +139,7 @@ export default () => {
           x-pattern="readPretty"
           x-reactions={{
             dependencies: ['.projects'],
-            when: '{{$deps.length > 0}}',
+            when: '{{$deps[0].length > 0}}',
             fulfill: {
               state: {
                 value:
@@ -174,7 +173,6 @@ import {
 } from '@formily/antd'
 import { createForm } from '@formily/core'
 import { createSchemaField } from '@formily/react'
-import 'antd/lib/alert/style'
 
 const SchemaField = createSchemaField({
   components: {
@@ -340,7 +338,7 @@ const schema = {
       'x-pattern': 'readPretty',
       'x-reactions': {
         dependencies: ['.projects'],
-        when: '{{$deps.length > 0}}',
+        when: '{{$deps[0].length > 0}}',
         fulfill: {
           state: {
             value:

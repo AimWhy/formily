@@ -1,92 +1,52 @@
-import { provide, defineComponent, DefineComponent } from 'vue-demi'
-import { useField, useForm } from '../hooks'
-import { useAttach } from '../hooks/useAttach'
-import { VueComponent, IFieldProps } from '../types'
+import { isVue2, h as _h } from 'vue-demi'
 import ReactiveField from './ReactiveField'
-import { FieldSymbol } from '../shared/context'
-import h from '../shared/h'
 import { getRawComponent } from '../utils/getRawComponent'
-import { observer } from '@formily/reactive-vue'
 
-type ArrayFieldProps = IFieldProps<VueComponent, VueComponent>
+import type { IArrayFieldProps, DefineComponent } from '../types'
+import { getFieldProps } from '../utils/getFieldProps'
 
-export default observer(defineComponent<ArrayFieldProps>({
-  name: 'ArrayField',
-  /* eslint-disable vue/require-prop-types  */
-  /* eslint-disable vue/require-default-prop */
-  props: {
-    name: {},
-    title: {},
-    description: {},
-    value: {},
-    initialValue: {},
-    basePath: {},
-    decorator: Array,
-    component: Array,
-    display: String,
-    pattern: String,
-    required: {
-      type: Boolean,
-      default: undefined
-    },
-    validateFirst: {
-      type: Boolean,
-      default: undefined
-    },
-    hidden: {
-      type: Boolean,
-      default: undefined
-    },
-    visible: {
-      type: Boolean,
-      default: undefined
-    },
-    editable: {
-      type: Boolean,
-      default: undefined
-    },
-    disabled: {
-      type: Boolean,
-      default: undefined
-    },
-    readOnly: {
-      type: Boolean,
-      default: undefined
-    },
-    readPretty: {
-      type: Boolean,
-      default: undefined
-    },
-    dataSource: {},
-    validator: {},
-    reactions: [Array, Function],
-  },
-  setup(props: ArrayFieldProps, { slots }) {
-    const formRef = useForm()
-    const parentRef = useField()
-    const basePath = props.basePath !== undefined ? props.basePath : parentRef?.value?.address
-    const fieldRef = useAttach(() => formRef.value.createArrayField({
-      ...props,
-      basePath,
-      ...getRawComponent(props)
-    }), [() => props.name, formRef])
+let ArrayField: DefineComponent<IArrayFieldProps>
 
-    provide(FieldSymbol, fieldRef)
-
-    return () => h(
-      ReactiveField, 
-      {
+/* istanbul ignore else */
+if (isVue2) {
+  ArrayField = {
+    functional: true,
+    name: 'ArrayField',
+    props: getFieldProps(),
+    render(h, context) {
+      const props = context.props as IArrayFieldProps
+      const attrs = context.data.attrs
+      const componentData = {
+        ...context.data,
         props: {
-          field: fieldRef.value
-        }
-      },
-      {
-        ...slots,
-        default: () => slots.default && slots.default({
-          field: fieldRef.value,
-          form: fieldRef.value.form
-        })
+          fieldType: 'ArrayField',
+          fieldProps: {
+            ...attrs,
+            ...props,
+            ...getRawComponent(props),
+          },
+        },
       }
-    )
-  }
-}) as unknown as DefineComponent<ArrayFieldProps>)
+      return _h(ReactiveField, componentData, context.children)
+    },
+  } as unknown as DefineComponent<IArrayFieldProps>
+} else {
+  ArrayField = {
+    name: 'ArrayField',
+    props: getFieldProps(),
+    setup(props: IArrayFieldProps, context) {
+      return () => {
+        const componentData = {
+          fieldType: 'ArrayField',
+          fieldProps: {
+            ...props,
+            ...getRawComponent(props),
+          },
+        } as Record<string, unknown>
+        return _h(ReactiveField, componentData, context.slots)
+      }
+    },
+  } as unknown as DefineComponent<IArrayFieldProps>
+}
+
+export default ArrayField

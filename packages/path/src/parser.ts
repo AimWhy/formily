@@ -16,6 +16,7 @@ import {
   commaTok,
   expandTok,
   eofTok,
+  dbStarTok,
 } from './tokens'
 import { bracketArrayContext, destructorContext } from './contexts'
 import {
@@ -74,11 +75,13 @@ const calculate = (
 }
 
 export class Parser extends Tokenizer {
-  public isMatchPattern: boolean
+  public isMatchPattern = false
 
-  public isWildMatchPattern: boolean
+  public isWildMatchPattern = false
 
-  public haveExcludePattern: boolean
+  public haveExcludePattern = false
+
+  public haveRelativePattern = false
 
   public base: Path
 
@@ -130,6 +133,7 @@ export class Parser extends Tokenizer {
         return this.parseIdentifier()
       case expandTok:
         return this.parseExpandOperator()
+      case dbStarTok:
       case starTok:
         return this.parseWildcardOperator()
       case bracketDLTok:
@@ -209,6 +213,10 @@ export class Parser extends Tokenizer {
       type: 'WildcardOperator',
     }
 
+    if (this.state.type === dbStarTok) {
+      node.optional = true
+    }
+
     this.isMatchPattern = true
     this.isWildMatchPattern = true
     this.data.segments = []
@@ -238,14 +246,26 @@ export class Parser extends Tokenizer {
         : this.parseArrayPattern()
     const endPos = this.state.pos
     this.state.context.pop()
-    this.next()
     node.source = this.input
       .substring(startPos, endPos)
       .replace(
         /\[\s*([\+\-\*\/])?\s*([^,\]\s]*)\s*\]/,
         (match, operator, target) => {
-          if (this.relative !== undefined)
-            return calculate(target || 1, this.relative, operator)
+          if (this.relative !== undefined) {
+            if (operator) {
+              if (target) {
+                return calculate(this.relative, target, operator)
+              } else {
+                return calculate(this.relative, 1, operator)
+              }
+            } else {
+              if (target) {
+                return calculate(this.relative, target, '+')
+              } else {
+                return String(this.relative)
+              }
+            }
+          }
           return match
         }
       )
@@ -256,6 +276,7 @@ export class Parser extends Tokenizer {
     }
     this.relative = undefined
     this.pushSegments(node.source)
+    this.next()
     this.append(node, this.parseAtom(this.state.type))
     return node
   }
@@ -275,8 +296,10 @@ export class Parser extends Tokenizer {
     while (this.state.type !== bracketRTok && this.state.type !== eofTok) {
       nodes.push(this.parseAtom(this.state.type))
       if (this.state.type === bracketRTok) {
-        this.next()
-        break
+        if (this.includesContext(destructorContext)) {
+          this.next()
+        }
+        return nodes
       }
       this.next()
     }
@@ -309,8 +332,10 @@ export class Parser extends Tokenizer {
           | ArrayPatternNode[]
       }
       if (this.state.type === braceRTok) {
-        this.next()
-        break
+        if (this.includesContext(destructorContext)) {
+          this.next()
+        }
+        return nodes
       }
       this.next()
     }
@@ -330,6 +355,7 @@ export class Parser extends Tokenizer {
       this.data.segments = this.base.toArr()
       while (this.state.type === dotTok) {
         this.relative = this.data.segments.pop()
+        this.haveRelativePattern = true
         this.next()
       }
       return createTreeBySegments(
@@ -429,8 +455,10 @@ export class Parser extends Tokenizer {
           }
           break loop
         case commaTok:
+          // never reach
           throw this.unexpect()
         case eofTok:
+          // never reach
           break loop
         default:
           if (!start) {

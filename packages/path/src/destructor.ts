@@ -1,40 +1,40 @@
 import {
   Segments,
   Node,
-  DestrcutorRules,
+  DestructorRules,
   isArrayPattern,
   isObjectPattern,
   isIdentifier,
-  isDestructorExpression
+  isDestructorExpression,
 } from './types'
 import { isNum } from './shared'
 
-type Mutatators = {
+type Mutators = {
   getIn: (segments: Segments, source: any) => any
   setIn: (segments: Segments, source: any, value: any) => void
   deleteIn?: (segments: Segments, source: any) => any
   existIn?: (segments: Segments, source: any, start: number) => boolean
 }
 
-const DestrcutorCache = new Map()
+const DestructorCache = new Map()
 
 const isValid = (val: any) => val !== undefined && val !== null
 
 export const getDestructor = (source: string) => {
-  return DestrcutorCache.get(source)
+  return DestructorCache.get(source)
 }
 
-export const setDestructor = (source: string, rules: DestrcutorRules) => {
-  DestrcutorCache.set(source, rules)
+export const setDestructor = (source: string, rules: DestructorRules) => {
+  DestructorCache.set(source, rules)
 }
 
-export const parseDestructorRules = (node: Node): DestrcutorRules => {
+export const parseDestructorRules = (node: Node): DestructorRules => {
   const rules = []
   if (isObjectPattern(node)) {
     let index = 0
-    node.properties.forEach(child => {
+    node.properties.forEach((child) => {
       rules[index] = {
-        path: []
+        path: [],
       }
       rules[index].key = child.key.value
       rules[index].path.push(child.key.value)
@@ -44,14 +44,14 @@ export const parseDestructorRules = (node: Node): DestrcutorRules => {
       const basePath = rules[index].path
       const childRules = parseDestructorRules(child.value as Node)
       let k = index
-      childRules.forEach(rule => {
+      childRules.forEach((rule) => {
         if (rules[k]) {
           rules[k].key = rule.key
           rules[k].path = basePath.concat(rule.path)
         } else {
           rules[k] = {
             key: rule.key,
-            path: basePath.concat(rule.path)
+            path: basePath.concat(rule.path),
           }
         }
         k++
@@ -67,7 +67,7 @@ export const parseDestructorRules = (node: Node): DestrcutorRules => {
     let index = 0
     node.elements.forEach((child, key) => {
       rules[index] = {
-        path: []
+        path: [],
       }
       rules[index].key = key
       rules[index].path.push(key)
@@ -77,14 +77,14 @@ export const parseDestructorRules = (node: Node): DestrcutorRules => {
       const basePath = rules[index].path
       const childRules = parseDestructorRules(child as Node)
       let k = index
-      childRules.forEach(rule => {
+      childRules.forEach((rule) => {
         if (rules[k]) {
           rules[k].key = rule.key
           rules[k].path = basePath.concat(rule.path)
         } else {
           rules[k] = {
             key: rule.key,
-            path: basePath.concat(rule.path)
+            path: basePath.concat(rule.path),
           }
         }
         k++
@@ -105,9 +105,9 @@ export const parseDestructorRules = (node: Node): DestrcutorRules => {
 
 export const setInByDestructor = (
   source: any,
-  rules: DestrcutorRules,
+  rules: DestructorRules,
   value: any,
-  mutators: Mutatators
+  mutators: Mutators
 ) => {
   rules.forEach(({ key, path }) => {
     mutators.setIn([key], source, mutators.getIn(path, value))
@@ -116,8 +116,8 @@ export const setInByDestructor = (
 
 export const getInByDestructor = (
   source: any,
-  rules: DestrcutorRules,
-  mutators: Mutatators
+  rules: DestructorRules,
+  mutators: Mutators
 ) => {
   let response = {}
   if (rules.length) {
@@ -134,8 +134,8 @@ export const getInByDestructor = (
 
 export const deleteInByDestructor = (
   source: any,
-  rules: DestrcutorRules,
-  mutators: Mutatators
+  rules: DestructorRules,
+  mutators: Mutators
 ) => {
   rules.forEach(({ key }) => {
     mutators.deleteIn([key], source)
@@ -144,9 +144,9 @@ export const deleteInByDestructor = (
 
 export const existInByDestructor = (
   source: any,
-  rules: DestrcutorRules,
+  rules: DestructorRules,
   start: number,
-  mutators: Mutatators
+  mutators: Mutators
 ) => {
   return rules.every(({ key }) => {
     return mutators.existIn([key], source, start)

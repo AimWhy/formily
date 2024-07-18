@@ -1,43 +1,40 @@
-import { IChange } from './types'
-import { RawNode, ProxyRaw } from './environment'
+import { IOperation } from './types'
+import { ObserverListeners } from './environment'
+import { raw as getRaw } from './externals'
 import { isFn } from './checkers'
-
-interface IListener {
-  (change: IChange): void
-  unobserve?(): void
-}
+import { DataChange, getDataNode } from './tree'
 
 export const observe = (
   target: object,
-  observer?: (change: IChange) => void,
+  observer?: (change: DataChange) => void,
   deep = true
 ) => {
-  const listener: IListener = (change: IChange) => {
-    if (isFn(observer)) {
-      observer(change)
-    }
-  }
-
   const addListener = (target: any) => {
-    const raw = ProxyRaw.get(target) || target
-    const node = RawNode.get(raw)
-    if (node) {
+    const raw = getRaw(target)
+    const node = getDataNode(raw)
+
+    const listener = (operation: IOperation) => {
+      const targetRaw = getRaw(operation.target)
+      const targetNode = getDataNode(targetRaw)
       if (deep) {
-        const id = node.deepObservers.length
-        node.deepObservers.push(listener)
-        listener.unobserve = () => {
-          node.deepObservers.splice(id, 1)
-        }
-      } else {
-        const id = node.observers.length
-        node.observers.push(listener)
-        listener.unobserve = () => {
-          node.observers.splice(id, 1)
+        if (node.contains(targetNode)) {
+          observer(new DataChange(operation, targetNode))
+          return
         }
       }
+      if (
+        node === targetNode ||
+        (node.targetRaw === targetRaw && node.key === operation.key)
+      ) {
+        observer(new DataChange(operation, targetNode))
+      }
+    }
+
+    if (node && isFn(observer)) {
+      ObserverListeners.add(listener)
     }
     return () => {
-      listener?.unobserve()
+      ObserverListeners.delete(listener)
     }
   }
   if (target && typeof target !== 'object')

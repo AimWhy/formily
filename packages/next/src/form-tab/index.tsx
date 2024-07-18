@@ -1,6 +1,7 @@
 import React, { Fragment, useMemo } from 'react'
 import { Tab as Tabs, Badge } from '@alifd/next'
-import { model } from '@formily/reactive'
+import { model, markRaw } from '@formily/reactive'
+import { isValid } from '@formily/shared'
 import {
   ItemProps as TabPaneProps,
   TabProps as TabsProps,
@@ -8,6 +9,7 @@ import {
 import {
   useField,
   observer,
+  ReactFC,
   useFieldSchema,
   RecursionField,
 } from '@formily/react'
@@ -15,8 +17,8 @@ import { Schema, SchemaKey } from '@formily/json-schema'
 import cls from 'classnames'
 import { usePrefixCls } from '../__builtins__'
 export interface IFormTab {
-  activeKey: React.ReactText
-  setActiveKey(key: React.ReactText): void
+  activeKey: SchemaKey
+  setActiveKey(key: SchemaKey): void
 }
 
 export interface IFormTabProps extends TabsProps {
@@ -24,12 +26,17 @@ export interface IFormTabProps extends TabsProps {
 }
 
 export interface IFormTabPaneProps extends TabPaneProps {
-  key: React.ReactText
+  key: SchemaKey
 }
 
-type ComposedFormTab = React.FC<IFormTabProps> & {
-  TabPane?: React.FC<IFormTabPaneProps>
-  createFormTab?: (defaultActiveKey?: React.ReactText) => IFormTab
+interface IFeedbackBadgeProps {
+  name: SchemaKey
+  tab: React.ReactNode
+}
+
+type ComposedFormTab = React.FC<React.PropsWithChildren<IFormTabProps>> & {
+  TabPane: React.FC<React.PropsWithChildren<IFormTabPaneProps>>
+  createFormTab: (defaultActiveKey?: React.ReactText) => IFormTab
 }
 
 const useTabs = () => {
@@ -60,54 +67,62 @@ const createFormTab = (defaultActiveKey?: string) => {
       formTab.activeKey = key
     },
   })
-  return formTab
+  return markRaw(formTab)
 }
 
-export const FormTab: ComposedFormTab = observer(({ formTab, ...props }) => {
+const FeedbackBadge: ReactFC<IFeedbackBadgeProps> = observer((props) => {
   const field = useField()
-  const tabs = useTabs()
-  const _formTab = useMemo(() => {
-    return formTab ? formTab : createFormTab()
-  }, [])
-  const prefixCls = usePrefixCls('formily-tab', props)
-  const activeKey = props.activeKey || _formTab?.activeKey
-
-  const badgedTab = (key: SchemaKey, props: any) => {
-    const errors = field.form.queryFeedbacks({
-      type: 'error',
-      address: `${field.address.concat(key)}.*`,
-    })
-    if (errors.length) {
-      return (
-        <Badge className="errors-badge" count={errors.length}>
-          {props.tab}
-        </Badge>
-      )
-    }
-    return props.tab
+  const errors = field.form.queryFeedbacks({
+    type: 'error',
+    address: `${field.address.concat(props.name)}.*`,
+  })
+  if (errors.length) {
+    return (
+      <Badge className="errors-badge" count={errors.length}>
+        {props.tab}
+      </Badge>
+    )
   }
-
-  return (
-    <Tabs
-      {...props}
-      className={cls(prefixCls, props.className)}
-      activeKey={activeKey}
-      onChange={(key) => {
-        props.onChange?.(key)
-        formTab?.setActiveKey?.(key)
-      }}
-      lazyLoad={false}
-    >
-      {tabs.map(({ props, schema, name }, key) => (
-        <Tabs.Item {...props} key={key} tab={badgedTab(name, props)}>
-          <RecursionField schema={schema} name={name} />
-        </Tabs.Item>
-      ))}
-    </Tabs>
-  )
+  return <Fragment>{props.tab}</Fragment>
 })
 
-const TabPane: React.FC<IFormTabPaneProps> = ({ children }) => {
+export const FormTab: ComposedFormTab = observer(
+  ({ formTab, ...props }: IFormTabProps) => {
+    const tabs = useTabs()
+    const _formTab = useMemo(() => {
+      return formTab ? formTab : createFormTab()
+    }, [])
+    const prefixCls = usePrefixCls('formily-tab', props)
+    const activeKey = props.activeKey || _formTab?.activeKey
+
+    return (
+      <Tabs
+        {...props}
+        {...(isValid(activeKey) && { activeKey })}
+        className={cls(prefixCls, props.className)}
+        onChange={(key) => {
+          props.onChange?.(key)
+          _formTab?.setActiveKey?.(key)
+        }}
+        lazyLoad={false}
+      >
+        {tabs.map(({ props, schema, name }, key) => (
+          <Tabs.Item
+            key={key}
+            {...props}
+            tab={<FeedbackBadge name={name} tab={props.tab} />}
+          >
+            <RecursionField schema={schema} name={name} />
+          </Tabs.Item>
+        ))}
+      </Tabs>
+    )
+  }
+) as unknown as ComposedFormTab
+
+const TabPane: React.FC<React.PropsWithChildren<IFormTabPaneProps>> = ({
+  children,
+}) => {
   return <Fragment>{children}</Fragment>
 }
 

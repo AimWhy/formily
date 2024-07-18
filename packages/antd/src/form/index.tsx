@@ -1,23 +1,27 @@
 import React from 'react'
-import { FormProvider } from '@formily/react'
+import { Form as FormType, ObjectField, IFormFeedback } from '@formily/core'
+import { useParentForm, FormProvider, JSXComponent } from '@formily/react'
 import { FormLayout, IFormLayoutProps } from '../form-layout'
-
-export interface FormProps
-  extends Formily.React.Types.IProviderProps,
-    IFormLayoutProps {
-  form: Formily.Core.Models.Form
-  component?: Formily.React.Types.JSXComponent
+import { PreviewText } from '../preview-text'
+export interface FormProps extends IFormLayoutProps {
+  form?: FormType
+  component?: JSXComponent
   onAutoSubmit?: (values: any) => any
+  onAutoSubmitFailed?: (feedbacks: IFormFeedback[]) => void
+  previewTextPlaceholder?: React.ReactNode
 }
 
-export const Form: React.FC<FormProps> = ({
+export const Form: React.FC<React.PropsWithChildren<FormProps>> = ({
   form,
   component,
   onAutoSubmit,
+  onAutoSubmitFailed,
+  previewTextPlaceholder,
   ...props
 }) => {
-  return (
-    <FormProvider form={form}>
+  const top = useParentForm()
+  const renderContent = (form: FormType | ObjectField) => (
+    <PreviewText.Placeholder value={previewTextPlaceholder}>
       <FormLayout {...props}>
         {React.createElement(
           component,
@@ -25,14 +29,18 @@ export const Form: React.FC<FormProps> = ({
             onSubmit(e: React.FormEvent) {
               e?.stopPropagation?.()
               e?.preventDefault?.()
-              form.submit(onAutoSubmit)
+              form.submit(onAutoSubmit).catch(onAutoSubmitFailed)
             },
           },
           props.children
         )}
       </FormLayout>
-    </FormProvider>
+    </PreviewText.Placeholder>
   )
+  if (form)
+    return <FormProvider form={form}>{renderContent(form)}</FormProvider>
+  if (!top) throw new Error('must pass form instance by createForm')
+  return renderContent(top)
 }
 
 Form.defaultProps = {

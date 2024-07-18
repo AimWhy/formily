@@ -1,13 +1,4 @@
 import { observable, observe } from '../'
-import { ProxyRaw, RawNode } from '../environment'
-
-const getObservers = (target: any) => {
-  return RawNode.get(ProxyRaw.get(target))?.observers
-}
-
-const getDeepObservers = (target: any) => {
-  return RawNode.get(ProxyRaw.get(target))?.deepObservers
-}
 
 test('deep observe', () => {
   const obs = observable<any>({
@@ -16,6 +7,7 @@ test('deep observe', () => {
         cc: [11, 22, 33],
       },
     },
+    ee: observable([]),
   })
   const handler = jest.fn()
   observe(obs, handler)
@@ -25,6 +17,14 @@ test('deep observe', () => {
   expect(handler).toHaveBeenCalledTimes(2)
   delete obs.aa
   expect(handler).toHaveBeenCalledTimes(3)
+
+  // Are these expected behaviors?
+  obs.ee.push(11)
+  expect(handler).toHaveBeenCalledTimes(3)
+  obs.ee = []
+  expect(handler).toHaveBeenCalledTimes(4)
+  obs.ee.push(11)
+  expect(handler).toHaveBeenCalledTimes(5)
 })
 
 test('shallow observe', () => {
@@ -43,31 +43,6 @@ test('shallow observe', () => {
   expect(handler).toHaveBeenCalledTimes(1)
   delete obs.aa
   expect(handler).toHaveBeenCalledTimes(2)
-})
-
-test('auto dispose observe', () => {
-  const obs = observable<any>({
-    aa: {
-      bb: {
-        cc: [11, 22, 33],
-      },
-    },
-  })
-  const handler = jest.fn()
-  observe(obs, handler)
-  observe(obs.aa, handler)
-  observe(obs.aa.bb, handler)
-  expect(getDeepObservers(obs.aa).length).toEqual(1)
-  expect(getDeepObservers(obs.aa.bb).length).toEqual(1)
-  obs.aa.bb = { kk: 'mm' }
-  expect(getDeepObservers(obs.aa.bb).length).toEqual(1)
-  expect(getDeepObservers(obs.aa).length).toEqual(1)
-  expect(getObservers(obs.aa).length).toEqual(0)
-  expect(handler).toBeCalledTimes(3)
-  observe(obs.aa, handler)
-  expect(getObservers(obs.aa).length).toEqual(0)
-  expect(getDeepObservers(obs.aa).length).toEqual(2)
-  delete obs.aa
 })
 
 test('root replace observe', () => {
@@ -137,4 +112,40 @@ test('dispose observe', () => {
   dispose()
   obs.aa = { mm: 444 }
   expect(handler).toBeCalledTimes(4)
+})
+
+test('array delete', () => {
+  const array = observable([{ value: 1 }, { value: 2 }])
+
+  const fn = jest.fn()
+
+  const dispose = observe(array, (change) => {
+    if (change.type === 'set' && change.key === 'value') {
+      fn(change.path?.join('.'))
+    }
+  })
+
+  array[0].value = 3
+  expect(fn.mock.calls[0][0]).toBe('0.value')
+
+  array.splice(0, 1)
+
+  array[0].value = 3
+  expect(fn.mock.calls[1][0]).toBe('0.value')
+
+  dispose()
+})
+
+test('observe dynamic tree', () => {
+  const handler = jest.fn()
+  const tree = observable<any>({})
+  const childTree = observable({})
+  tree.children = childTree
+  observe(tree, handler)
+  tree.children.aa = 123
+  expect(handler).toBeCalledTimes(1)
+})
+
+test('invalid target', () => {
+  expect(() => observe(function () {})).toThrowError()
 })

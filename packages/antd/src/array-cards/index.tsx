@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, Empty } from 'antd'
 import { CardProps } from 'antd/lib/card'
+import { ArrayField } from '@formily/core'
 import {
   useField,
   observer,
@@ -10,44 +11,53 @@ import {
 import cls from 'classnames'
 import { ISchema } from '@formily/json-schema'
 import { usePrefixCls } from '../__builtins__'
-import { ArrayBase, ArrayBaseMixins } from '../array-base'
+import { ArrayBase, ArrayBaseMixins, IArrayBaseProps } from '../array-base'
 
-type ComposedArrayCards = React.FC<CardProps> & ArrayBaseMixins
+type ComposedArrayCards = React.FC<
+  React.PropsWithChildren<CardProps & IArrayBaseProps>
+> &
+  ArrayBaseMixins
 
 const isAdditionComponent = (schema: ISchema) => {
   return schema['x-component']?.indexOf('Addition') > -1
 }
 
 const isIndexComponent = (schema: ISchema) => {
-  return schema['x-component']?.indexOf('Index') > -1
+  return schema['x-component']?.indexOf?.('Index') > -1
 }
 
 const isRemoveComponent = (schema: ISchema) => {
-  return schema['x-component']?.indexOf('Remove') > -1
+  return schema['x-component']?.indexOf?.('Remove') > -1
+}
+
+const isCopyComponent = (schema: ISchema) => {
+  return schema['x-component']?.indexOf?.('Copy') > -1
 }
 
 const isMoveUpComponent = (schema: ISchema) => {
-  return schema['x-component']?.indexOf('MoveUp') > -1
+  return schema['x-component']?.indexOf?.('MoveUp') > -1
 }
 
 const isMoveDownComponent = (schema: ISchema) => {
-  return schema['x-component']?.indexOf('MoveDown') > -1
+  return schema['x-component']?.indexOf?.('MoveDown') > -1
 }
 
 const isOperationComponent = (schema: ISchema) => {
   return (
     isAdditionComponent(schema) ||
     isRemoveComponent(schema) ||
+    isCopyComponent(schema) ||
     isMoveDownComponent(schema) ||
     isMoveUpComponent(schema)
   )
 }
 
 export const ArrayCards: ComposedArrayCards = observer((props) => {
-  const field = useField<Formily.Core.Models.ArrayField>()
+  const field = useField<ArrayField>()
   const schema = useFieldSchema()
   const dataSource = Array.isArray(field.value) ? field.value : []
   const prefixCls = usePrefixCls('formily-array-cards', props)
+  const { onAdd, onCopy, onRemove, onMoveDown, onMoveUp } = props
 
   if (!schema) throw new Error('can not found schema object')
 
@@ -96,7 +106,11 @@ export const ArrayCards: ComposedArrayCards = observer((props) => {
         />
       )
       return (
-        <ArrayBase.Item key={index} index={index}>
+        <ArrayBase.Item
+          key={index}
+          index={index}
+          record={() => field.value?.[index]}
+        >
           <Card
             {...props}
             onChange={() => {}}
@@ -112,9 +126,9 @@ export const ArrayCards: ComposedArrayCards = observer((props) => {
   }
 
   const renderAddition = () => {
-    return schema.reduceProperties((addition, schema) => {
+    return schema.reduceProperties((addition, schema, key) => {
       if (isAdditionComponent(schema)) {
-        return <RecursionField schema={schema} name="addition" />
+        return <RecursionField schema={schema} name={key} />
       }
       return addition
     }, null)
@@ -135,7 +149,13 @@ export const ArrayCards: ComposedArrayCards = observer((props) => {
   }
 
   return (
-    <ArrayBase>
+    <ArrayBase
+      onAdd={onAdd}
+      onCopy={onCopy}
+      onRemove={onRemove}
+      onMoveUp={onMoveUp}
+      onMoveDown={onMoveDown}
+    >
       {renderEmpty()}
       {renderItems()}
       {renderAddition()}

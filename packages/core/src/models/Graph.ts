@@ -7,7 +7,7 @@ import {
   isFieldState,
   isArrayFieldState,
   isObjectFieldState,
-} from '../shared'
+} from '../shared/checkers'
 
 export class Graph {
   form: Form
@@ -50,9 +50,9 @@ export class Graph {
       } else {
         const field = form.fields[address]
         if (field) {
-          field.setState(state as any)
+          field.setState(state)
         } else {
-          createField(address, state).setState(state as any)
+          createField(address, state).setState(state)
         }
       }
     })

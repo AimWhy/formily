@@ -1,21 +1,25 @@
-@import '~antd/lib/style/themes/default.less';
+@root-entry-name: 'default';
+@import (reference) '~antd/es/style/themes/index.less';
 
 @array-table-prefix-cls: ~'@{ant-prefix}-formily-array-table';
 
 .@{array-table-prefix-cls} {
-
   .@{array-table-prefix-cls}-pagination {
     display: flex;
     justify-content: center;
 
     .@{array-table-prefix-cls}-status-select.has-error {
       .@{ant-prefix}-select-selector {
-        border-color: @error-color  !important;
+        border-color: @error-color !important;
       }
     }
   }
 
   .@{ant-prefix}-table {
+    table {
+      overflow: hidden;
+    }
+
     td {
       visibility: visible;
 
@@ -33,6 +37,9 @@
           z-index: 1;
           border-radius: 3px;
           box-shadow: 0 0 10px #eee;
+          animation: none;
+          transform: translateY(0);
+          opacity: 1;
         }
       }
     }
